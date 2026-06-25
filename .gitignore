@@ -1,0 +1,15 @@
+# Xcode / build output
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# XcodeGen regenerates this from project.yml
+TicketToText.xcodeproj/
+
+# Node
+node_modules/
+
+.archive/
+.DS_Store
+.vercel

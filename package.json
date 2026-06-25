@@ -1,0 +1,22 @@
+{
+  "name": "ticket-to-text-engine",
+  "version": "0.0.1",
+  "private": true,
+  "description": "v0 game engine for Ticket to Text (portable to Swift iMessage extension)",
+  "type": "module",
+  "scripts": {
+    "test": "node --test src/*.test.ts",
+    "demo": "node src/demo.ts",
+    "fuzz": "node src/fuzz.ts",
+    "livetest": "node src/livetest.ts",
+    "build:server": "npx --yes esbuild server/app-entry.ts --bundle --platform=node --target=node20 --format=esm --outfile=app.js",
+    "ios:icons": "swift ios/Tools/gen-icons.swift 'ios/MessagesExtension/Assets.xcassets/iMessage App Icon.stickersiconset' 'ios/App/Assets.xcassets/AppIcon.appiconset'",
+    "ios:gen": "xcodegen generate",
+    "ios:build": "xcodebuild -project TicketToText.xcodeproj -scheme TicketToText -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+    "ios:run": "open -a Simulator && xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/TicketToText.app && xcrun simctl launch booted com.apple.MobileSMS",
+    "ios:enginecheck": "mkdir -p build && swiftc -O ios/MessagesExtension/Engine/Types.swift ios/MessagesExtension/Engine/Map.swift ios/MessagesExtension/Engine/RNG.swift ios/MessagesExtension/Engine/Game.swift ios/MessagesExtension/Engine/Scoring.swift ios/Tools/enginecheck/main.swift -o build/ttt-enginecheck && build/ttt-enginecheck"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.38.0"
+  }
+}

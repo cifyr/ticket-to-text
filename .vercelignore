@@ -1,0 +1,10 @@
+# Deploy only the self-contained app.js server (engine bundled in) + package.json.
+ios
+build
+.archive
+node_modules
+*.xcodeproj
+src
+server
+api
+tsconfig.json
