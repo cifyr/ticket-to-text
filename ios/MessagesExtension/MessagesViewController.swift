@@ -26,6 +26,10 @@ class MessagesViewController: MSMessagesAppViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // Restore a name saved on a previous install (keychain survives reinstalls).
+        if (UserDefaults.standard.string(forKey: "playerName") ?? "").isEmpty, let n = NameStore.load() {
+            UserDefaults.standard.set(n, forKey: "playerName")
+        }
         view.backgroundColor = .systemBackground
         let host = UIHostingController(rootView: AnyView(Color.clear))
         addChild(host)
@@ -86,7 +90,9 @@ class MessagesViewController: MSMessagesAppViewController {
     private func localID(_ c: MSConversation) -> String { c.localParticipantIdentifier.uuidString }
     private func localName() -> String? {
         let n = UserDefaults.standard.string(forKey: "playerName")?.trimmingCharacters(in: .whitespaces)
-        return (n?.isEmpty == false) ? n : nil
+        let name = (n?.isEmpty == false) ? n : nil
+        if let name, name != NameStore.load() { NameStore.save(name) } // mirror to keychain
+        return name
     }
     private func localPlayerCount() -> Int {
         let n = UserDefaults.standard.integer(forKey: "playerCount")
