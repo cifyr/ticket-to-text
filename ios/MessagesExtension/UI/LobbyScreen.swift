@@ -6,6 +6,8 @@ struct LobbyScreen: View {
     let isExpanded: Bool
     let onReady: (Bool) -> Void
     let onStart: () -> Void
+    let onRefresh: () -> Void
+    let onInvite: () -> Void
     let onExpand: () -> Void
 
     private var amHost: Bool { lobby.you == 0 }
@@ -38,6 +40,7 @@ struct LobbyScreen: View {
                 Text("Game Lobby").font(.title3.bold())
                 Spacer()
                 Text("\(lobby.members.count)/\(lobby.maxPlayers)").font(.subheadline).foregroundStyle(.secondary)
+                Button(action: onRefresh) { Image(systemName: "arrow.clockwise") }.buttonStyle(.bordered).clipShape(Circle())
             }
 
             VStack(spacing: 8) {
@@ -65,15 +68,20 @@ struct LobbyScreen: View {
             }
 
             if amHost {
+                Button(action: onInvite) {
+                    Label("Send invite", systemImage: "paperplane.fill").frame(maxWidth: .infinity).padding(.vertical, 4)
+                }
+                .buttonStyle(.bordered)
                 Button(action: onStart) {
                     Label("Start game", systemImage: "play.fill").frame(maxWidth: .infinity).padding(.vertical, 4)
                 }
                 .buttonStyle(.borderedProminent).tint(Color.brand).disabled(!lobby.canStart)
                 if !lobby.canStart {
-                    Text("Need 2+ players, everyone ready.").font(.caption2).foregroundStyle(.secondary)
+                    Text("Send the invite, then start once everyone has joined and readied (tap refresh to update).")
+                        .font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
             } else {
-                Text("Waiting for the host to start…").font(.caption).foregroundStyle(.secondary)
+                Text("Waiting for the host to start… (tap refresh to update)").font(.caption).foregroundStyle(.secondary)
             }
 
             Text("Set your name in the ? menu.").font(.caption2).foregroundStyle(.secondary)

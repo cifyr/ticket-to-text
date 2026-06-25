@@ -14,6 +14,13 @@ class MessagesViewController: MSMessagesAppViewController {
     private var serverError: String?
     private var loading = false
     private var lobby: LobbyView?
+    private var session: MSSession?   // shared so invite -> game is one bubble
+
+    private func currentSession(_ c: MSConversation) -> MSSession {
+        let s = c.selectedMessage?.session ?? session ?? MSSession()
+        session = s
+        return s
+    }
     private lazy var client = GameClient(baseURL: AppConfig.serverBaseURL, bypassToken: AppConfig.bypassToken)
 
     override func willBecomeActive(with conversation: MSConversation) {
@@ -93,10 +100,8 @@ class MessagesViewController: MSMessagesAppViewController {
                 switch room {
                 case .lobby(let lv):
                     if lv.you == nil {
-                        // Opening an invite auto-joins you and announces it.
-                        let joined = try await self.client.join(gameId: gid, participantId: self.localID(c), name: self.localName())
-                        self.lobby = joined
-                        self.stageLobby(gid, joined, in: c)
+                        // Opening an invite joins you on the server — no message sent.
+                        self.lobby = try await self.client.join(gameId: gid, participantId: self.localID(c), name: self.localName())
                     } else {
                         self.lobby = lv
                     }
@@ -139,8 +144,8 @@ class MessagesViewController: MSMessagesAppViewController {
                 self.serverError = nil
                 self.loading = false
                 self.requestPresentationStyle(.expanded)
-                self.stageLobby(resp.gameId, resp.view, in: c) // invite others
-                self.render(for: c)
+                self.render(for: c) // host taps "Send invite" when ready to invite
+
             } catch {
                 self.serverError = "\(error)"; self.loading = false; self.render(for: c)
             }
@@ -151,12 +156,19 @@ class MessagesViewController: MSMessagesAppViewController {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                let lv = try await self.client.ready(gameId: gid, participantId: self.localID(c), ready: ready)
-                self.lobby = lv
-                self.stageLobby(gid, lv, in: c)
+                // Ready is server-only — no message is sent.
+                self.lobby = try await self.client.ready(gameId: gid, participantId: self.localID(c), ready: ready)
                 self.render(for: c)
             } catch { self.serverError = "\(error)"; self.render(for: c) }
         }
+    }
+    private func onRefreshServer(_ c: MSConversation) {
+        guard let gid = serverGameId else { return }
+        fetchRoom(gid, c)
+    }
+    private func onInviteServer(_ c: MSConversation) {
+        guard let gid = serverGameId, let lobby else { return }
+        stageLobby(gid, lobby, in: c) // puts the invite in the input to send
     }
     private func onStartServer(_ c: MSConversation) {
         guard let gid = serverGameId else { return }
@@ -181,6 +193,8 @@ class MessagesViewController: MSMessagesAppViewController {
                 lobby: lobby, isExpanded: isExpanded,
                 onReady: { [weak self] r in self?.onReadyServer(r, c) },
                 onStart: { [weak self] in self?.onStartServer(c) },
+                onRefresh: { [weak self] in self?.onRefreshServer(c) },
+                onInvite: { [weak self] in self?.onInviteServer(c) },
                 onExpand: { [weak self] in self?.requestPresentationStyle(.expanded) })))
             return
         }
@@ -216,8 +230,8 @@ class MessagesViewController: MSMessagesAppViewController {
     // MARK: Messaging
 
     private func stage(_ state: GameState, url: URL, in c: MSConversation) {
-        let session = c.selectedMessage?.session ?? MSSession()
-        let message = MSMessage(session: session)
+        let s = currentSession(c)
+        let message = MSMessage(session: s)
         let layout = MSMessageTemplateLayout()
         let (caption, sub) = captionPair(state)
         layout.image = BoardSnapshot.render(state, caption: sub)
@@ -231,8 +245,8 @@ class MessagesViewController: MSMessagesAppViewController {
     }
 
     private func stageLobby(_ gid: String, _ lobby: LobbyView, in c: MSConversation) {
-        let session = c.selectedMessage?.session ?? MSSession()
-        let message = MSMessage(session: session)
+        let s = currentSession(c)
+        let message = MSMessage(session: s)
         let layout = MSMessageTemplateLayout()
         let ready = lobby.members.filter { $0.ready }.count
         layout.caption = "Ticket to Text — Lobby"
