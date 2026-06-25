@@ -159,7 +159,7 @@ struct GameView: View {
                             .foregroundStyle(ownerColor(p)).contentTransition(.numericText())
                         Label("\(state.players[p].trains)", systemImage: "tram.fill")
                             .font(.caption2).foregroundStyle(.secondary)
-                        if active { Text("● to move").font(.caption2.bold()).foregroundStyle(ownerColor(p)) }
+                        if active { Text(mine ? "● your move" : "● to move").font(.caption2.bold()).foregroundStyle(ownerColor(p)) }
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -324,7 +324,10 @@ struct GameView: View {
             case let w?: return "\(name(w)) wins!"
             }
         }
-        return "\(name(state.currentPlayer)) to move"
+        if Game.assignedIndex(state, participantID: localParticipantID) == state.currentPlayer {
+            return "Your move"
+        }
+        return "\(name(state.currentPlayer))'s move"
     }
 }
 

@@ -169,8 +169,8 @@ class MessagesViewController: MSMessagesAppViewController {
         let session = c.selectedMessage?.session ?? MSSession()
         let message = MSMessage(session: session)
         let layout = MSMessageTemplateLayout()
-        layout.image = BoardSnapshot.render(state)
         let (caption, sub) = captionPair(state)
+        layout.image = BoardSnapshot.render(state, caption: sub)
         layout.caption = caption
         layout.subcaption = sub
         message.layout = layout
