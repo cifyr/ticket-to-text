@@ -1,5 +1,45 @@
 # TicketToText — project notes
 
+## Distribution via TestFlight (paid Apple Developer account)
+
+Moving off free Personal Team signing removes the 7-day expiry and the
+white-screen trust problem entirely: TestFlight builds are trusted
+automatically, so `LSApplicationLaunchProhibited` (the no-home-icon hack) works
+fine and the extension launches without a manual trust step.
+
+Bundle IDs stay `com.cadenwarren.tickettotext` and
+`com.cadenwarren.tickettotext.MessagesExtension` (registered under the new
+account — a bundle ID's reverse-domain prefix does not have to match the team).
+
+Setup steps for the account owner (no repo changes required; signing is handled
+in Xcode):
+
+1. Register both App IDs in the Apple Developer portal (the MessagesExtension ID
+   needs the Messages capability), then create the App Store Connect app record.
+2. Open the project, set the **Team** to theirs on both the `TicketToText` and
+   `MessagesExtension` targets. Code signing is Automatic, so Xcode generates the
+   profiles. (To build from this repo instead, override `DEVELOPMENT_TEAM` in
+   `project.yml` / via an xcconfig rather than committing a new team ID.)
+3. **Archive** a Release build (Xcode > Product > Archive — not the debug device
+   build used elsewhere in these notes) and upload to App Store Connect.
+4. Enable TestFlight, add testers or turn on the public invite link, and share.
+
+### Who can play / what a non-tester sees
+The game is turn-based and server-authoritative, so every player needs the app
+installed. Each turn/invite is an `MSMessage`: the board-snapshot image and
+caption are baked into the message layout and render for everyone, but the game
+payload is a custom-scheme URL (`tickettotext://game?g=...`) only the extension
+understands. A recipient without the app sees the bubble image + text but cannot
+open or play it. On TestFlight (not the public App Store) the "get the app"
+affordance leads nowhere usable, so **everyone in a game must be a TestFlight
+tester** (install via the invite link, open TestFlight once).
+
+### Server
+The app targets the Vercel deployment in
+`ios/MessagesExtension/Net/AppConfig.swift` (`serverBaseURL`). All testers' games
+run through it, so that deployment must stay up. It is independent of the Apple
+account and does not move with the app.
+
 ## On-device iMessage extension: white screen ("works in simulator, white on device")
 
 ### Symptom
