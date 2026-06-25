@@ -87,13 +87,30 @@ class MessagesViewController: MSMessagesAppViewController {
 
     // MARK: Identity / settings
 
-    private func localID(_ c: MSConversation) -> String { c.localParticipantIdentifier.uuidString }
+    private func localID(_ c: MSConversation) -> String {
+        #if DEBUG
+        if let alt = DebugIdentity.overrideID() { return alt }
+        #endif
+        return c.localParticipantIdentifier.uuidString
+    }
     private func localName() -> String? {
+        #if DEBUG
+        if let alt = DebugIdentity.overrideName() { return alt } // don't touch the real saved name
+        #endif
         let n = UserDefaults.standard.string(forKey: "playerName")?.trimmingCharacters(in: .whitespaces)
         let name = (n?.isEmpty == false) ? n : nil
         if let name, name != NameStore.load() { NameStore.save(name) } // mirror to keychain
         return name
     }
+
+    #if DEBUG
+    // Test-only: become the next account and reload the current room as them.
+    private func switchIdentity() {
+        DebugIdentity.cycle()
+        guard let c = activeConversation else { return }
+        if AppConfig.useServer { loadServer(c) } else { render(for: c) }
+    }
+    #endif
     private func localPlayerCount() -> Int {
         let n = UserDefaults.standard.integer(forKey: "playerCount")
         return n == 0 ? 2 : max(2, min(4, n))
@@ -366,6 +383,12 @@ class MessagesViewController: MSMessagesAppViewController {
     // MARK: Hosting
 
     private func setRoot(_ view: AnyView) {
+        #if DEBUG
+        hosting?.rootView = AnyView(view.overlay(
+            DebugIdentityBar(label: DebugIdentity.label, onSwitch: { [weak self] in self?.switchIdentity() })
+        ))
+        #else
         hosting?.rootView = view
+        #endif
     }
 }
