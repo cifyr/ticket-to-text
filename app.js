@@ -5937,6 +5937,7 @@ function applyMoveBy(state, move, participantID) {
 function redactFor(state, seat) {
   const over = isGameOver(state);
   return {
+    phase: "playing",
     you: seat,
     currentPlayer: state.currentPlayer,
     over,
@@ -5970,8 +5971,8 @@ var MemoryStore = class {
   get(id) {
     return this.m.get(id);
   }
-  set(id, state) {
-    this.m.set(id, state);
+  set(id, room) {
+    this.m.set(id, room);
   }
 };
 var GameNotFound = class extends Error {
@@ -5980,33 +5981,97 @@ var GameNotFound = class extends Error {
     this.name = "GameNotFound";
   }
 };
+var BadState = class extends Error {
+};
+function cryptoId() {
+  const g = globalThis;
+  if (g.crypto?.randomUUID) return g.crypto.randomUUID().slice(0, 8);
+  return Math.random().toString(36).slice(2, 10);
+}
+function lobbyViewFor(lobby, participantId) {
+  const youIdx = lobby.members.findIndex((m) => m.id === participantId);
+  return {
+    phase: "lobby",
+    you: youIdx === -1 ? null : youIdx,
+    maxPlayers: lobby.maxPlayers,
+    members: lobby.members.map((m, i) => ({ name: m.name, ready: m.ready, isHost: i === 0 })),
+    canStart: lobby.members.length >= 2 && lobby.members.every((m) => m.ready)
+  };
+}
+async function createLobby(store2, opts) {
+  const maxPlayers = Math.max(2, Math.min(4, opts.maxPlayers ?? 4));
+  const lobby = {
+    members: [{ id: opts.hostId, name: opts.hostName ?? null, ready: false }],
+    maxPlayers,
+    hostId: opts.hostId,
+    seed: opts.seed ?? Math.floor(Math.random() * 4294967295)
+  };
+  const gameId = opts.gameId ?? cryptoId();
+  await store2.set(gameId, { kind: "lobby", lobby });
+  return { gameId, view: lobbyViewFor(lobby, opts.hostId) };
+}
+async function loadLobby(store2, gameId) {
+  const room = await store2.get(gameId);
+  if (!room) throw new GameNotFound(gameId);
+  if (room.kind !== "lobby") throw new BadState("game already started");
+  return room.lobby;
+}
+async function joinLobby(store2, gameId, participantId, name) {
+  const lobby = await loadLobby(store2, gameId);
+  const existing = lobby.members.find((m) => m.id === participantId);
+  if (existing) {
+    if (name) existing.name = name;
+  } else if (lobby.members.length < lobby.maxPlayers) {
+    lobby.members.push({ id: participantId, name: name ?? null, ready: false });
+  }
+  await store2.set(gameId, { kind: "lobby", lobby });
+  return lobbyViewFor(lobby, participantId);
+}
+async function setReady(store2, gameId, participantId, ready) {
+  const lobby = await loadLobby(store2, gameId);
+  const me = lobby.members.find((m) => m.id === participantId);
+  if (!me) throw new BadState("join the lobby first");
+  me.ready = ready;
+  await store2.set(gameId, { kind: "lobby", lobby });
+  return lobbyViewFor(lobby, participantId);
+}
+async function startLobby(store2, gameId, participantId) {
+  const lobby = await loadLobby(store2, gameId);
+  if (participantId !== lobby.hostId) throw new BadState("only the host can start");
+  if (lobby.members.length < 2) throw new BadState("need at least 2 players");
+  if (!lobby.members.every((m) => m.ready)) throw new BadState("everyone must be ready");
+  const game = newGame(lobby.seed, lobby.members.length);
+  lobby.members.forEach((m, i) => {
+    game.playerIDs[i] = m.id;
+    game.playerNames[i] = m.name;
+  });
+  await store2.set(gameId, { kind: "game", game });
+  return redactFor(game, assignedIndex(game, participantId));
+}
 async function createGame(store2, opts) {
   const seed = opts.seed ?? Math.floor(Math.random() * 4294967295);
   const state = newGame(seed, opts.playerCount);
   state.playerIDs[0] = opts.hostId;
   if (opts.hostName) state.playerNames[0] = opts.hostName;
   const gameId = opts.gameId ?? cryptoId();
-  await store2.set(gameId, state);
+  await store2.set(gameId, { kind: "game", game: state });
   return { gameId, view: redactFor(state, 0) };
 }
 async function getView(store2, gameId, participantId) {
-  const state = await store2.get(gameId);
-  if (!state) throw new GameNotFound(gameId);
-  return redactFor(state, assignedIndex(state, participantId));
+  const room = await store2.get(gameId);
+  if (!room) throw new GameNotFound(gameId);
+  if (room.kind === "lobby") return lobbyViewFor(room.lobby, participantId);
+  return redactFor(room.game, assignedIndex(room.game, participantId));
 }
 async function submitMove(store2, gameId, participantId, move, name) {
-  const state = await store2.get(gameId);
-  if (!state) throw new GameNotFound(gameId);
-  const next = applyMoveBy(state, move, participantId);
+  const room = await store2.get(gameId);
+  if (!room) throw new GameNotFound(gameId);
+  if (room.kind !== "game") throw new BadState("game has not started");
+  const next = applyMoveBy(room.game, move, participantId);
   const seat = assignedIndex(next, participantId);
   if (name) next.playerNames[seat] = name;
-  await store2.set(gameId, next);
+  await store2.set(gameId, { kind: "game", game: next });
   return redactFor(next, seat);
-}
-function cryptoId() {
-  const g = globalThis;
-  if (g.crypto?.randomUUID) return g.crypto.randomUUID().slice(0, 8);
-  return Math.random().toString(36).slice(2, 10);
 }
 
 // server/app-entry.ts
@@ -6018,8 +6083,8 @@ var RedisStore = class {
   async get(id) {
     return await this.redis.get(`game:${id}`) ?? void 0;
   }
-  async set(id, state) {
-    await this.redis.set(`game:${id}`, state, { ex: 60 * 60 * 24 * 7 });
+  async set(id, room) {
+    await this.redis.set(`game:${id}`, room, { ex: 60 * 60 * 24 * 7 });
   }
 };
 function makeStore() {
@@ -6072,10 +6137,30 @@ var server = createServer(async (req, res) => {
       send(res, 200, await submitMove(store, b.gameId, b.participantId, b.move, b.name));
       return;
     }
-    send(res, 400, { error: "unknown action; use create | view | move" });
+    if (req.method === "POST" && action === "create-lobby") {
+      send(res, 200, await createLobby(store, await readBody(req)));
+      return;
+    }
+    if (req.method === "POST" && action === "join") {
+      const b = await readBody(req);
+      send(res, 200, await joinLobby(store, b.gameId, b.participantId, b.name));
+      return;
+    }
+    if (req.method === "POST" && action === "ready") {
+      const b = await readBody(req);
+      send(res, 200, await setReady(store, b.gameId, b.participantId, !!b.ready));
+      return;
+    }
+    if (req.method === "POST" && action === "start") {
+      const b = await readBody(req);
+      send(res, 200, await startLobby(store, b.gameId, b.participantId));
+      return;
+    }
+    send(res, 400, { error: "unknown action" });
   } catch (e) {
     const msg = e?.message ?? String(e);
-    send(res, /not your turn|not found/.test(msg) ? 409 : 400, { error: msg });
+    const conflict = /not your turn|not found|not started|host|ready|already started|2 players/.test(msg);
+    send(res, conflict ? 409 : 400, { error: msg });
   }
 });
 var port = process.env.PORT ? Number(process.env.PORT) : 3e3;

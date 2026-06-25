@@ -13,6 +13,7 @@ class MessagesViewController: MSMessagesAppViewController {
     private var serverGameId: String?
     private var serverError: String?
     private var loading = false
+    private var lobby: LobbyView?
     private lazy var client = GameClient(baseURL: AppConfig.serverBaseURL, bypassToken: AppConfig.bypassToken)
 
     override func willBecomeActive(with conversation: MSConversation) {
@@ -74,23 +75,36 @@ class MessagesViewController: MSMessagesAppViewController {
     // MARK: Online (server) mode
 
     private func loadServer(_ c: MSConversation) {
-        serverError = nil
+        serverError = nil; lobby = nil; displayState = nil
         if let url = c.selectedMessage?.url, let gid = gameId(from: url) {
             serverGameId = gid
-            fetchView(gid, c)
+            fetchRoom(gid, c)
         } else {
             serverGameId = nil
-            displayState = nil
-            render(for: c)
+            render(for: c) // no game yet -> start screen
         }
     }
-    private func fetchView(_ gid: String, _ c: MSConversation) {
+    private func fetchRoom(_ gid: String, _ c: MSConversation) {
         loading = true; render(for: c)
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                let view = try await self.client.view(gameId: gid, me: self.localID(c))
-                self.displayState = view.displayState(localID: self.localID(c))
+                let room = try await self.client.room(gameId: gid, me: self.localID(c))
+                switch room {
+                case .lobby(let lv):
+                    if lv.you == nil {
+                        // Opening an invite auto-joins you and announces it.
+                        let joined = try await self.client.join(gameId: gid, participantId: self.localID(c), name: self.localName())
+                        self.lobby = joined
+                        self.stageLobby(gid, joined, in: c)
+                    } else {
+                        self.lobby = lv
+                    }
+                    self.displayState = nil
+                case .game(let pv):
+                    self.lobby = nil
+                    self.displayState = pv.displayState(localID: self.localID(c))
+                }
             } catch { self.serverError = "\(error)" }
             self.loading = false
             self.render(for: c)
@@ -116,17 +130,44 @@ class MessagesViewController: MSMessagesAppViewController {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                let resp = try await self.client.create(playerCount: self.localPlayerCount(),
-                                                        hostId: self.localID(c), hostName: self.localName())
+                // Lobby always allows up to 4; it sizes to whoever actually joins.
+                let resp = try await self.client.createLobby(hostId: self.localID(c), hostName: self.localName(),
+                                                             maxPlayers: 4)
                 self.serverGameId = resp.gameId
-                self.displayState = resp.view.displayState(localID: self.localID(c))
+                self.lobby = resp.view
+                self.displayState = nil
                 self.serverError = nil
                 self.loading = false
                 self.requestPresentationStyle(.expanded)
+                self.stageLobby(resp.gameId, resp.view, in: c) // invite others
                 self.render(for: c)
             } catch {
                 self.serverError = "\(error)"; self.loading = false; self.render(for: c)
             }
+        }
+    }
+    private func onReadyServer(_ ready: Bool, _ c: MSConversation) {
+        guard let gid = serverGameId else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let lv = try await self.client.ready(gameId: gid, participantId: self.localID(c), ready: ready)
+                self.lobby = lv
+                self.stageLobby(gid, lv, in: c)
+                self.render(for: c)
+            } catch { self.serverError = "\(error)"; self.render(for: c) }
+        }
+    }
+    private func onStartServer(_ c: MSConversation) {
+        guard let gid = serverGameId else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let pv = try await self.client.start(gameId: gid, participantId: self.localID(c))
+                self.lobby = nil
+                self.displayState = pv.displayState(localID: self.localID(c))
+                self.render(for: c) // host now plays P1; their first move sends the game bubble
+            } catch { self.serverError = "\(error)"; self.render(for: c) }
         }
     }
 
@@ -134,6 +175,15 @@ class MessagesViewController: MSMessagesAppViewController {
 
     private func render(for c: MSConversation) {
         let isExpanded = presentationStyle == .expanded
+
+        if AppConfig.useServer, let lobby {
+            setRoot(AnyView(LobbyScreen(
+                lobby: lobby, isExpanded: isExpanded,
+                onReady: { [weak self] r in self?.onReadyServer(r, c) },
+                onStart: { [weak self] in self?.onStartServer(c) },
+                onExpand: { [weak self] in self?.requestPresentationStyle(.expanded) })))
+            return
+        }
 
         if AppConfig.useServer && displayState == nil {
             setRoot(AnyView(ServerStatusView(
@@ -176,6 +226,20 @@ class MessagesViewController: MSMessagesAppViewController {
         message.layout = layout
         message.url = url
         message.summaryText = sub
+        c.insert(message) { if let e = $0 { print("insert failed:", e) } }
+        requestPresentationStyle(.compact)
+    }
+
+    private func stageLobby(_ gid: String, _ lobby: LobbyView, in c: MSConversation) {
+        let session = c.selectedMessage?.session ?? MSSession()
+        let message = MSMessage(session: session)
+        let layout = MSMessageTemplateLayout()
+        let ready = lobby.members.filter { $0.ready }.count
+        layout.caption = "Ticket to Text — Lobby"
+        layout.subcaption = "\(lobby.members.count)/\(lobby.maxPlayers) joined · \(ready) ready — tap to join"
+        message.layout = layout
+        message.url = gameIdURL(gid)
+        message.summaryText = "Join the game"
         c.insert(message) { if let e = $0 { print("insert failed:", e) } }
         requestPresentationStyle(.compact)
     }

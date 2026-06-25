@@ -8,19 +8,21 @@
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { Redis } from "@upstash/redis";
-import { createGame, getView, submitMove, MemoryStore, type Store } from "../src/server.ts";
-import type { GameState } from "../src/types.ts";
+import {
+  createGame, createLobby, getView, joinLobby, setReady, startLobby, submitMove,
+  MemoryStore, type Room, type Store,
+} from "../src/server.ts";
 
-// Durable store: each game persists under `game:<id>` so concurrent games
-// survive across serverless instances. Falls back to in-memory until Upstash
-// env vars are present (set automatically when you connect the integration).
+// Durable store: each room (lobby or game) persists under `game:<id>` so
+// concurrent games survive across serverless instances. Falls back to in-memory
+// until Upstash env vars are present (set when you connect the integration).
 class RedisStore implements Store {
   constructor(private redis: Redis) {}
-  async get(id: string): Promise<GameState | undefined> {
-    return (await this.redis.get<GameState>(`game:${id}`)) ?? undefined;
+  async get(id: string): Promise<Room | undefined> {
+    return (await this.redis.get<Room>(`game:${id}`)) ?? undefined;
   }
-  async set(id: string, state: GameState): Promise<void> {
-    await this.redis.set(`game:${id}`, state, { ex: 60 * 60 * 24 * 7 }); // 7-day TTL
+  async set(id: string, room: Room): Promise<void> {
+    await this.redis.set(`game:${id}`, room, { ex: 60 * 60 * 24 * 7 }); // 7-day TTL
   }
 }
 
@@ -73,10 +75,31 @@ const server = createServer(async (req, res) => {
       send(res, 200, await submitMove(store, b.gameId, b.participantId, b.move, b.name));
       return;
     }
-    send(res, 400, { error: "unknown action; use create | view | move" });
+    // Lobby actions
+    if (req.method === "POST" && action === "create-lobby") {
+      send(res, 200, await createLobby(store, await readBody(req)));
+      return;
+    }
+    if (req.method === "POST" && action === "join") {
+      const b = await readBody(req);
+      send(res, 200, await joinLobby(store, b.gameId, b.participantId, b.name));
+      return;
+    }
+    if (req.method === "POST" && action === "ready") {
+      const b = await readBody(req);
+      send(res, 200, await setReady(store, b.gameId, b.participantId, !!b.ready));
+      return;
+    }
+    if (req.method === "POST" && action === "start") {
+      const b = await readBody(req);
+      send(res, 200, await startLobby(store, b.gameId, b.participantId));
+      return;
+    }
+    send(res, 400, { error: "unknown action" });
   } catch (e: any) {
     const msg = e?.message ?? String(e);
-    send(res, /not your turn|not found/.test(msg) ? 409 : 400, { error: msg });
+    const conflict = /not your turn|not found|not started|host|ready|already started|2 players/.test(msg);
+    send(res, conflict ? 409 : 400, { error: msg });
   }
 });
 

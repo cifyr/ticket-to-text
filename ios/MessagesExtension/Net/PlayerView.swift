@@ -13,6 +13,7 @@ struct PublicPlayer: Codable, Equatable {
 }
 
 struct PlayerView: Codable {
+    var phase: String = "playing"
     let you: Int?
     let currentPlayer: Int
     let over: Bool
@@ -35,4 +36,30 @@ struct PlayerView: Codable {
 struct CreateResponse: Codable {
     let gameId: String
     let view: PlayerView
+}
+
+// Pre-game lobby.
+struct LobbyMemberView: Codable, Equatable {
+    let name: String?
+    let ready: Bool
+    let isHost: Bool
+}
+
+struct LobbyView: Codable {
+    var phase: String = "lobby"
+    let you: Int?
+    let maxPlayers: Int
+    let members: [LobbyMemberView]
+    let canStart: Bool
+}
+
+struct LobbyCreateResponse: Codable {
+    let gameId: String
+    let view: LobbyView
+}
+
+// The /view endpoint returns either a lobby or a game.
+enum RoomView {
+    case lobby(LobbyView)
+    case game(PlayerView)
 }

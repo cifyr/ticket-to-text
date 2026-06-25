@@ -20,7 +20,7 @@ struct ServerStatusView: View {
                 Text("Turn off Deployment Protection (or set a bypass token). See server/README.md.")
                     .font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
             } else {
-                Text("Online mode — cheat-proof").font(.caption).foregroundStyle(.secondary)
+                Text("Happy Birthday Dad!").font(.title3.weight(.bold)).foregroundStyle(Color.brand)
             }
             if isExpanded {
                 Button("Start a new game", action: onNewGame).buttonStyle(.borderedProminent).tint(Color.brand)

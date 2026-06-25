@@ -15,7 +15,22 @@ export interface PublicPlayer {
 // The redacted, per-player view sent over the wire. Crucially this contains NO
 // other player's hand/tickets and NO deck/ticket-deck ordering — only the
 // requesting seat's own secrets. This is what makes the server cheat-proof.
+// Pre-game lobby roster (everyone sees who has joined and who is ready).
+export interface LobbyMemberView {
+  name: string | null;
+  ready: boolean;
+  isHost: boolean;
+}
+export interface LobbyView {
+  phase: "lobby";
+  you: number | null; // your index in the lobby, or null if you haven't joined
+  maxPlayers: number;
+  members: LobbyMemberView[];
+  canStart: boolean;
+}
+
 export interface PlayerView {
+  phase: "playing";
   you: number | null; // your seat, or null if you're a spectator / not yet joined
   currentPlayer: number;
   over: boolean;
@@ -38,6 +53,7 @@ export interface PlayerView {
 export function redactFor(state: GameState, seat: number | null): PlayerView {
   const over = isGameOver(state);
   return {
+    phase: "playing",
     you: seat,
     currentPlayer: state.currentPlayer,
     over,

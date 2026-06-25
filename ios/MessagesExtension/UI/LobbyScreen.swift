@@ -1,0 +1,83 @@
+import SwiftUI
+
+// Pre-game lobby (online mode): players join, mark ready, host starts.
+struct LobbyScreen: View {
+    let lobby: LobbyView
+    let isExpanded: Bool
+    let onReady: (Bool) -> Void
+    let onStart: () -> Void
+    let onExpand: () -> Void
+
+    private var amHost: Bool { lobby.you == 0 }
+    private var meReady: Bool { if let y = lobby.you { return lobby.members[y].ready } else { return false } }
+    private var readyCount: Int { lobby.members.filter { $0.ready }.count }
+
+    var body: some View {
+        if isExpanded { full } else { compact }
+    }
+
+    private var compact: some View {
+        Button(action: onExpand) {
+            HStack(spacing: 12) {
+                ZStack { RoundedRectangle(cornerRadius: 10).fill(Color.brand); Image(systemName: "person.3.fill").foregroundStyle(.white) }
+                    .frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Game lobby").font(.headline)
+                    Text("\(lobby.members.count)/\(lobby.maxPlayers) joined · \(readyCount) ready").font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(.secondary).font(.footnote)
+            }.padding(12)
+        }.buttonStyle(.plain)
+    }
+
+    private var full: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "person.3.fill").foregroundStyle(Color.brand)
+                Text("Game Lobby").font(.title3.bold())
+                Spacer()
+                Text("\(lobby.members.count)/\(lobby.maxPlayers)").font(.subheadline).foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: 8) {
+                ForEach(Array(lobby.members.enumerated()), id: \.offset) { i, m in
+                    HStack(spacing: 10) {
+                        Circle().fill(ownerColor(i)).frame(width: 10, height: 10)
+                        Text(m.name ?? "Player \(i + 1)").font(.subheadline.weight(.medium))
+                        if m.isHost { Text("HOST").font(.caption2.bold()).foregroundStyle(.secondary) }
+                        if lobby.you == i { Text("(you)").font(.caption2).foregroundStyle(.secondary) }
+                        Spacer()
+                        Image(systemName: m.ready ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(m.ready ? .green : .secondary)
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(UIColor.secondarySystemBackground)))
+                }
+            }
+
+            if lobby.you != nil {
+                Button { onReady(!meReady) } label: {
+                    Label(meReady ? "Ready ✓" : "I'm ready", systemImage: meReady ? "checkmark.seal.fill" : "hand.thumbsup")
+                        .frame(maxWidth: .infinity).padding(.vertical, 4)
+                }
+                .buttonStyle(.borderedProminent).tint(meReady ? .green : Color.brand)
+            }
+
+            if amHost {
+                Button(action: onStart) {
+                    Label("Start game", systemImage: "play.fill").frame(maxWidth: .infinity).padding(.vertical, 4)
+                }
+                .buttonStyle(.borderedProminent).tint(Color.brand).disabled(!lobby.canStart)
+                if !lobby.canStart {
+                    Text("Need 2+ players, everyone ready.").font(.caption2).foregroundStyle(.secondary)
+                }
+            } else {
+                Text("Waiting for the host to start…").font(.caption).foregroundStyle(.secondary)
+            }
+
+            Text("Set your name in the ? menu.").font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(16)
+    }
+}

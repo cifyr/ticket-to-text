@@ -19,6 +19,35 @@ struct GameClient {
         return try await send("create", method: "POST", query: [:], body: body)
     }
 
+    // --- Lobby ---
+    func createLobby(hostId: String, hostName: String?, maxPlayers: Int = 4) async throws -> LobbyCreateResponse {
+        var body: [String: Any] = ["hostId": hostId, "maxPlayers": maxPlayers]
+        if let hostName { body["hostName"] = hostName }
+        return try await send("create-lobby", method: "POST", query: [:], body: body)
+    }
+    func join(gameId: String, participantId: String, name: String?) async throws -> LobbyView {
+        var body: [String: Any] = ["gameId": gameId, "participantId": participantId]
+        if let name { body["name"] = name }
+        return try await send("join", method: "POST", query: [:], body: body)
+    }
+    func ready(gameId: String, participantId: String, ready: Bool) async throws -> LobbyView {
+        try await send("ready", method: "POST", query: [:],
+                       body: ["gameId": gameId, "participantId": participantId, "ready": ready])
+    }
+    func start(gameId: String, participantId: String) async throws -> PlayerView {
+        try await send("start", method: "POST", query: [:],
+                       body: ["gameId": gameId, "participantId": participantId])
+    }
+
+    // The /view endpoint can return a lobby or a game; decode by `phase`.
+    func room(gameId: String, me: String) async throws -> RoomView {
+        let data = try await request("view", method: "GET", query: ["id": gameId, "me": me], body: nil)
+        struct Peek: Decodable { let phase: String }
+        let phase = (try? JSONDecoder().decode(Peek.self, from: data))?.phase
+        if phase == "lobby" { return .lobby(try JSONDecoder().decode(LobbyView.self, from: data)) }
+        return .game(try JSONDecoder().decode(PlayerView.self, from: data))
+    }
+
     func view(gameId: String, me: String) async throws -> PlayerView {
         try await send("view", method: "GET", query: ["id": gameId, "me": me], body: nil)
     }
@@ -55,6 +84,12 @@ struct GameClient {
 
     private func send<T: Decodable>(_ action: String, method: String,
                                     query: [String: String], body: [String: Any]?) async throws -> T {
+        let data = try await request(action, method: method, query: query, body: body)
+        return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    private func request(_ action: String, method: String,
+                         query: [String: String], body: [String: Any]?) async throws -> Data {
         var comps = URLComponents(url: baseURL.appendingPathComponent("api"), resolvingAgainstBaseURL: false)!
         comps.queryItems = ([("action", action)] + query.map { ($0, $1) }).map { URLQueryItem(name: $0.0, value: $0.1) }
         var req = URLRequest(url: comps.url!)
@@ -70,6 +105,6 @@ struct GameClient {
             let msg = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
             throw ServerError(status: status, message: msg ?? String(data: data, encoding: .utf8) ?? "unknown")
         }
-        return try JSONDecoder().decode(T.self, from: data)
+        return data
     }
 }

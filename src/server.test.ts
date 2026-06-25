@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { createGame, getView, MemoryStore, submitMove } from "./server.ts";
+import {
+  createGame, createLobby, getView, joinLobby, MemoryStore, setReady, startLobby, submitMove,
+} from "./server.ts";
 
 test("host view exposes only the host's own secrets", async () => {
   const store = new MemoryStore();
@@ -65,4 +67,53 @@ test("server enforces turns: a non-current participant is rejected", async () =>
 test("unknown game id is reported clearly", async () => {
   const store = new MemoryStore();
   await assert.rejects(() => getView(store, "nope", "A"), /not found/);
+});
+
+test("lobby: players join, ready up, host starts; sizes to the join count", async () => {
+  const store = new MemoryStore();
+  const { gameId, view } = await createLobby(store, { hostId: "A", hostName: "Alice" });
+  assert.equal(view.phase, "lobby");
+  assert.equal(view.members.length, 1);
+  assert.equal(view.you, 0);
+  assert.equal(view.members[0].isHost, true);
+  assert.equal(view.canStart, false);
+
+  // B and C join (3-player game forms from who shows up).
+  await joinLobby(store, gameId, "B", "Bob");
+  const afterC = await joinLobby(store, gameId, "C", "Cara");
+  assert.equal(afterC.members.length, 3);
+
+  // Can't start until everyone is ready.
+  await setReady(store, gameId, "A", true);
+  await setReady(store, gameId, "B", true);
+  let v = await setReady(store, gameId, "C", false);
+  assert.equal(v.canStart, false);
+  await assert.rejects(() => startLobby(store, gameId, "A"), /ready/);
+
+  v = await setReady(store, gameId, "C", true);
+  assert.equal(v.canStart, true);
+
+  // Only the host can start.
+  await assert.rejects(() => startLobby(store, gameId, "B"), /host/);
+
+  const game = await startLobby(store, gameId, "A");
+  assert.equal(game.phase, "playing");
+  assert.equal(game.players.length, 3, "game sized to the 3 who joined");
+  assert.equal(game.you, 0);
+
+  // After start, the view is the game (not the lobby), and moves work.
+  const cView = await getView(store, gameId, "C");
+  assert.equal(cView.phase, "playing");
+});
+
+test("lobby: moving before start is rejected; lobby respects max players", async () => {
+  const store = new MemoryStore();
+  const { gameId } = await createLobby(store, { hostId: "H", maxPlayers: 2 });
+  await assert.rejects(
+    () => submitMove(store, gameId, "H", { kind: "drawCards", picks: [{ from: "blind" }] }),
+    /not started/,
+  );
+  await joinLobby(store, gameId, "X");
+  const full = await joinLobby(store, gameId, "Y"); // exceeds max 2 -> ignored
+  assert.equal(full.members.length, 2);
 });

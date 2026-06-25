@@ -4,7 +4,6 @@ import SwiftUI
 struct HowToPlayView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("playerName") private var playerName = ""
-    @AppStorage("playerCount") private var playerCount = 2
 
     var body: some View {
         NavigationStack {
@@ -12,7 +11,6 @@ struct HowToPlayView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     header
                     nameField
-                    playersField
 
                     rule(icon: "target", title: "Goal",
                          text: "Score the most points. You earn points by claiming routes, completing your secret destination tickets, and owning the longest continuous route.")
@@ -52,21 +50,6 @@ struct HowToPlayView: View {
             TextField("Enter your name", text: $playerName)
                 .textFieldStyle(.roundedBorder)
             Text("Shown to your opponent on your turns. Applied to your next move.")
-                .font(.caption2).foregroundStyle(.secondary)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color(UIColor.secondarySystemBackground)))
-    }
-
-    private var playersField: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label("Players", systemImage: "person.3.fill").font(.headline)
-            Picker("Players", selection: $playerCount) {
-                ForEach(2...4, id: \.self) { Text("\($0)").tag($0) }
-            }
-            .pickerStyle(.segmented)
-            Text("Takes effect on the next new game (tap the refresh button).")
                 .font(.caption2).foregroundStyle(.secondary)
         }
         .padding(14)

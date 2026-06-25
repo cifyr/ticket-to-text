@@ -10,6 +10,8 @@ struct BoardView: View {
     let claimable: (Route) -> Bool
     let onSelect: (Int) -> Void
     var showNames: Bool = true
+    var showLengthPips: Bool = true
+    var dotsOnSelected: Bool = false
 
     var body: some View {
         GeometryReader { geo in
@@ -18,7 +20,8 @@ struct BoardView: View {
                 Canvas { ctx, size in
                     BoardGeometry.draw(state, in: ctx, points: pts, size: size,
                                        selected: selectedRouteId, highlightTicket: highlightTicket,
-                                       showNames: showNames,
+                                       showNames: showNames, showLengthPips: showLengthPips,
+                                       dotsOnSelected: dotsOnSelected,
                                        highlightClaimable: canAct ? claimable : { _ in false })
                 }
                 Color.clear
@@ -101,6 +104,8 @@ enum BoardGeometry {
                      selected: Int?,
                      highlightTicket: Ticket?,
                      showNames: Bool = true,
+                     showLengthPips: Bool = true,
+                     dotsOnSelected: Bool = false,
                      highlightClaimable: (Route) -> Bool) {
         for route in state.routes {
             let a = points[route.cityA], b = points[route.cityB]
@@ -109,7 +114,7 @@ enum BoardGeometry {
             let fill: Color = owner != nil ? ownerColor(owner!)
                 : (claimable ? paintColor(route.color) : paintColor(route.color).opacity(0.45))
 
-            if route.id == selected { // selection halo
+            if route.id == selected { // selection / seized-route halo
                 var halo = Path(); halo.move(to: a); halo.addLine(to: b)
                 ctx.stroke(halo, with: .color(Color.brand.opacity(0.35)),
                            style: StrokeStyle(lineWidth: 16, lineCap: .round))
@@ -117,15 +122,26 @@ enum BoardGeometry {
 
             drawTrack(in: ctx, from: a, to: b, cars: route.length, fill: fill, ghost: owner == nil && !claimable)
 
-            let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
-            ctx.fill(Path(ellipseIn: CGRect(x: mid.x - 8, y: mid.y - 8, width: 16, height: 16)),
-                     with: .color(owner != nil ? ownerColor(owner!) : paintColor(route.color)))
-            ctx.stroke(Path(ellipseIn: CGRect(x: mid.x - 8, y: mid.y - 8, width: 16, height: 16)),
-                       with: .color(.white.opacity(0.9)), lineWidth: 1)
-            ctx.draw(Text("\(route.length)").font(.system(size: 10, weight: .bold)).foregroundStyle(.white), at: mid)
+            if route.id == selected && dotsOnSelected { drawDots(in: ctx, from: a, to: b, cars: route.length) }
+
+            if showLengthPips {
+                let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+                ctx.fill(Path(ellipseIn: CGRect(x: mid.x - 8, y: mid.y - 8, width: 16, height: 16)),
+                         with: .color(owner != nil ? ownerColor(owner!) : paintColor(route.color)))
+                ctx.stroke(Path(ellipseIn: CGRect(x: mid.x - 8, y: mid.y - 8, width: 16, height: 16)),
+                           with: .color(.white.opacity(0.9)), lineWidth: 1)
+                ctx.draw(Text("\(route.length)").font(.system(size: 10, weight: .bold)).foregroundStyle(.white), at: mid)
+            }
         }
 
         for (i, p) in points.enumerated() {
+            if dotsOnSelected {
+                // Recap image: subtle city markers so only the seized rail stands out.
+                let r: CGFloat = 2.5
+                ctx.fill(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)),
+                         with: .color(.gray.opacity(0.55)))
+                continue
+            }
             let r: CGFloat = 7
             ctx.fill(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)), with: .color(.white))
             ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)),
@@ -145,6 +161,19 @@ enum BoardGeometry {
                 ctx.stroke(Path(ellipseIn: CGRect(x: c.x - 12, y: c.y - 12, width: 24, height: 24)),
                            with: .color(Color.brand), lineWidth: 3)
             }
+        }
+    }
+
+    // Beads along a seized rail (used in the move-recap image instead of pips).
+    private static func drawDots(in ctx: GraphicsContext, from a: CGPoint, to b: CGPoint, cars: Int) {
+        let dx = b.x - a.x, dy = b.y - a.y
+        for k in 0..<cars {
+            let t = (CGFloat(k) + 0.5) / CGFloat(cars)
+            let c = CGPoint(x: a.x + dx * t, y: a.y + dy * t)
+            let r: CGFloat = 3.5
+            let dot = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
+            ctx.fill(dot, with: .color(.white))
+            ctx.stroke(dot, with: .color(Color.brand), lineWidth: 1.5)
         }
     }
 
