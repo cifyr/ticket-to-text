@@ -93,6 +93,11 @@ class MessagesViewController: MSMessagesAppViewController {
         return n == 0 ? 2 : max(2, min(4, n))
     }
 
+    // Remember the room so the host can reopen their own invite even when
+    // Messages doesn't hand us back a selectedMessage on tap.
+    private func rememberGame(_ gid: String) { UserDefaults.standard.set(gid, forKey: "lastGameId") }
+    private func recallGame() -> String? { UserDefaults.standard.string(forKey: "lastGameId") }
+
     // MARK: Offline (local) mode
 
     private func decodedLocal(from c: MSConversation) -> GameState {
@@ -125,12 +130,20 @@ class MessagesViewController: MSMessagesAppViewController {
     // MARK: Online (server) mode
 
     private func loadServer(_ c: MSConversation) {
-        serverError = nil; lobby = nil; displayState = nil
-        if let url = c.selectedMessage?.url, let gid = gameId(from: url) {
+        serverError = nil
+        // Resolve the game id in priority order: the tapped invite/game bubble,
+        // the room we already hold this session, or — only when the user tapped
+        // one of our bubbles — the last room we persisted (covers the host
+        // reopening their own invite, where Messages leaves selectedMessage nil).
+        // Opening fresh from the app drawer falls through to the start screen.
+        let tapped = c.selectedMessage?.url.flatMap { gameId(from: $0) }
+        let gid = tapped ?? serverGameId ?? (c.selectedMessage != nil ? recallGame() : nil)
+        if let gid {
             serverGameId = gid
-            fetchRoom(gid, c)
+            rememberGame(gid)
+            fetchRoom(gid, c) // keeps any current lobby/game visible while it refreshes
         } else {
-            serverGameId = nil
+            lobby = nil; displayState = nil; serverGameId = nil
             render(for: c) // no game yet -> start screen
         }
     }
@@ -183,6 +196,7 @@ class MessagesViewController: MSMessagesAppViewController {
                 let resp = try await self.client.createLobby(hostId: self.localID(c), hostName: self.localName(),
                                                              maxPlayers: 4)
                 self.serverGameId = resp.gameId
+                self.rememberGame(resp.gameId)
                 self.lobby = resp.view
                 self.displayState = nil
                 self.serverError = nil
