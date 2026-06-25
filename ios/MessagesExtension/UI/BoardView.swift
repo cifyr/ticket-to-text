@@ -9,6 +9,7 @@ struct BoardView: View {
     let canAct: Bool
     let claimable: (Route) -> Bool
     let onSelect: (Int) -> Void
+    var showNames: Bool = true
 
     var body: some View {
         GeometryReader { geo in
@@ -17,6 +18,7 @@ struct BoardView: View {
                 Canvas { ctx, size in
                     BoardGeometry.draw(state, in: ctx, points: pts, size: size,
                                        selected: selectedRouteId, highlightTicket: highlightTicket,
+                                       showNames: showNames,
                                        highlightClaimable: canAct ? claimable : { _ in false })
                 }
                 Color.clear
@@ -46,7 +48,7 @@ struct BoardArea: View {
     let claimable: (Route) -> Bool
     let onSelect: (Int) -> Void
 
-    @State private var zoomed = false
+    @State private var zoomed = true   // default: zoomed in (names visible)
     private let aspect: CGFloat = 0.74
     // Both levels are already zoomed past fit so the board never shrinks back to the whole-map view.
     private let baseScale: CGFloat = 1.7
@@ -61,7 +63,7 @@ struct BoardArea: View {
 
             ScrollView([.horizontal, .vertical], showsIndicators: true) {
                 BoardView(state: state, selectedRouteId: selectedRouteId, highlightTicket: highlightTicket,
-                          canAct: canAct, claimable: claimable, onSelect: onSelect)
+                          canAct: canAct, claimable: claimable, onSelect: onSelect, showNames: zoomed)
                     .frame(width: contentW, height: contentH)
                     .frame(minWidth: geo.size.width, minHeight: geo.size.height) // center when small
             }
@@ -98,6 +100,7 @@ enum BoardGeometry {
                      size: CGSize,
                      selected: Int?,
                      highlightTicket: Ticket?,
+                     showNames: Bool = true,
                      highlightClaimable: (Route) -> Bool) {
         for route in state.routes {
             let a = points[route.cityA], b = points[route.cityB]
@@ -127,8 +130,10 @@ enum BoardGeometry {
             ctx.fill(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)), with: .color(.white))
             ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)),
                        with: .color(Color.brand), lineWidth: 2)
-            ctx.draw(Text(GameMap.cities[i].name).font(.system(size: 9, weight: .semibold)).foregroundStyle(.primary),
-                     at: CGPoint(x: p.x, y: p.y - 13))
+            if showNames {
+                ctx.draw(Text(GameMap.cities[i].name).font(.system(size: 14, weight: .semibold)).foregroundStyle(.primary),
+                         at: CGPoint(x: p.x, y: p.y - 15))
+            }
         }
 
         if let t = highlightTicket {
