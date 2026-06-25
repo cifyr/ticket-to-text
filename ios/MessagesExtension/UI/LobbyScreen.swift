@@ -8,7 +8,10 @@ struct LobbyScreen: View {
     let onStart: () -> Void
     let onRefresh: () -> Void
     let onInvite: () -> Void
+    let onSetName: (String) -> Void
     let onExpand: () -> Void
+
+    @AppStorage("playerName") private var playerName = ""
 
     private var amHost: Bool { lobby.you == 0 }
     private var meReady: Bool { if let y = lobby.you { return lobby.members[y].ready } else { return false } }
@@ -41,6 +44,14 @@ struct LobbyScreen: View {
                 Spacer()
                 Text("\(lobby.members.count)/\(lobby.maxPlayers)").font(.subheadline).foregroundStyle(.secondary)
                 Button(action: onRefresh) { Image(systemName: "arrow.clockwise") }.buttonStyle(.bordered).clipShape(Circle())
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "person.fill").foregroundStyle(.secondary)
+                TextField("Your name", text: $playerName)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { onSetName(playerName) }
+                Button("Set") { onSetName(playerName) }.buttonStyle(.bordered)
             }
 
             VStack(spacing: 8) {
@@ -83,8 +94,6 @@ struct LobbyScreen: View {
             } else {
                 Text("Waiting for the host to start… (tap refresh to update)").font(.caption).foregroundStyle(.secondary)
             }
-
-            Text("Set your name in the ? menu.").font(.caption2).foregroundStyle(.secondary)
         }
         .padding(16)
     }

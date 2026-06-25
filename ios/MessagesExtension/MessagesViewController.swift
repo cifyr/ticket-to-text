@@ -24,6 +24,19 @@ class MessagesViewController: MSMessagesAppViewController {
     }
     private lazy var client = GameClient(baseURL: AppConfig.serverBaseURL, bypassToken: AppConfig.bypassToken)
 
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+        let host = UIHostingController(rootView: AnyView(Color.clear))
+        addChild(host)
+        host.view.frame = view.bounds
+        host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        host.view.backgroundColor = UIColor.systemBackground
+        view.addSubview(host.view)
+        host.didMove(toParent: self)
+        hosting = host
+    }
+
     override func willBecomeActive(with conversation: MSConversation) {
         super.willBecomeActive(with: conversation)
         if AppConfig.useServer {
@@ -202,6 +215,18 @@ class MessagesViewController: MSMessagesAppViewController {
         guard let gid = serverGameId, let lobby else { return }
         stageLobby(gid, lobby, in: c) // puts the invite in the input to send
     }
+    private func onSetNameServer(_ name: String, _ c: MSConversation) {
+        guard let gid = serverGameId else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                self.lobby = try await self.client.join(gameId: gid, participantId: self.localID(c),
+                                                        name: trimmed.isEmpty ? nil : trimmed)
+                self.render(for: c)
+            } catch { self.serverError = "\(error)"; self.render(for: c) }
+        }
+    }
     private func onStartServer(_ c: MSConversation) {
         guard let gid = serverGameId else { return }
         Task { @MainActor [weak self] in
@@ -228,6 +253,7 @@ class MessagesViewController: MSMessagesAppViewController {
                 onStart: { [weak self] in self?.onStartServer(c) },
                 onRefresh: { [weak self] in self?.onRefreshServer(c) },
                 onInvite: { [weak self] in self?.onInviteServer(c) },
+                onSetName: { [weak self] n in self?.onSetNameServer(n, c) },
                 onExpand: { [weak self] in self?.requestPresentationStyle(.expanded) })))
             return
         }
@@ -320,18 +346,6 @@ class MessagesViewController: MSMessagesAppViewController {
     // MARK: Hosting
 
     private func setRoot(_ view: AnyView) {
-        if let hosting { hosting.rootView = view; return }
-        let host = UIHostingController(rootView: view)
-        addChild(host)
-        host.view.translatesAutoresizingMaskIntoConstraints = false
-        self.view.addSubview(host.view)
-        NSLayoutConstraint.activate([
-            host.view.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
-            host.view.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
-            host.view.topAnchor.constraint(equalTo: self.view.topAnchor),
-            host.view.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
-        ])
-        host.didMove(toParent: self)
-        hosting = host
+        hosting?.rootView = view
     }
 }
