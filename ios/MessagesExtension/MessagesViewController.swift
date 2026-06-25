@@ -15,6 +15,7 @@ class MessagesViewController: MSMessagesAppViewController {
     private var loading = false
     private var lobby: LobbyView?
     private var session: MSSession?   // shared so invite -> game is one bubble
+    private var pollTask: Task<Void, Never>?
 
     private func currentSession(_ c: MSConversation) -> MSSession {
         let s = c.selectedMessage?.session ?? session ?? MSSession()
@@ -37,6 +38,35 @@ class MessagesViewController: MSMessagesAppViewController {
         super.didTransition(to: presentationStyle)
         if let conversation = activeConversation { render(for: conversation) }
     }
+
+    override func willResignActive(with conversation: MSConversation) {
+        super.willResignActive(with: conversation)
+        stopPolling()
+    }
+
+    // Live lobby without sending messages: poll the server while the lobby is
+    // open so joins/readies (and the host starting) appear automatically.
+    private func startLobbyPolling(_ gid: String, _ c: MSConversation) {
+        pollTask?.cancel()
+        pollTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                guard !Task.isCancelled, let self, self.serverGameId == gid, self.lobby != nil else { return }
+                do {
+                    switch try await self.client.room(gameId: gid, me: self.localID(c)) {
+                    case .lobby(let lv):
+                        self.lobby = lv; self.render(for: c)
+                    case .game(let pv): // host started — drop into the game
+                        self.lobby = nil
+                        self.displayState = pv.displayState(localID: self.localID(c))
+                        self.render(for: c)
+                        return
+                    }
+                } catch { /* transient network error; keep polling */ }
+            }
+        }
+    }
+    private func stopPolling() { pollTask?.cancel(); pollTask = nil }
 
     // MARK: Identity / settings
 
@@ -113,6 +143,7 @@ class MessagesViewController: MSMessagesAppViewController {
             } catch { self.serverError = "\(error)" }
             self.loading = false
             self.render(for: c)
+            if self.lobby != nil { self.startLobbyPolling(gid, c) } else { self.stopPolling() }
         }
     }
     private func onMoveServer(_ move: Move, in c: MSConversation) {
@@ -145,6 +176,7 @@ class MessagesViewController: MSMessagesAppViewController {
                 self.loading = false
                 self.requestPresentationStyle(.expanded)
                 self.render(for: c) // host taps "Send invite" when ready to invite
+                self.startLobbyPolling(resp.gameId, c)
 
             } catch {
                 self.serverError = "\(error)"; self.loading = false; self.render(for: c)
@@ -176,6 +208,7 @@ class MessagesViewController: MSMessagesAppViewController {
             guard let self else { return }
             do {
                 let pv = try await self.client.start(gameId: gid, participantId: self.localID(c))
+                self.stopPolling()
                 self.lobby = nil
                 self.displayState = pv.displayState(localID: self.localID(c))
                 self.render(for: c) // host now plays P1; their first move sends the game bubble

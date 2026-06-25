@@ -10,7 +10,7 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
     GENERATE_INFOPLIST_FILE: "NO"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: "ZRUFVD5GDT"
     CODE_SIGN_STYLE: Automatic
 targets:
   TicketToText:
