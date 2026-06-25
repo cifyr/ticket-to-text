@@ -9,36 +9,41 @@ struct RecapOverlay: View {
 
     var body: some View {
         ZStack {
-            Color(UIColor.systemBackground).opacity(0.97).ignoresSafeArea()
+            PaperFill().opacity(0.98)
             VStack(spacing: 14) {
-                Text("Last move").font(.caption).foregroundStyle(.secondary)
+                Text("Conductor's Report").font(.slab(11, .bold)).tracking(3).textCase(.uppercase)
+                    .foregroundStyle(Palette.sepiaLight)
                 Text("\(actorName) \(state.lastSummary ?? "moved")")
-                    .font(.title3.bold()).multilineTextAlignment(.center)
+                    .font(.slab(20, .bold)).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
 
                 if let rid = state.lastClaimedRouteId {
                     BoardView(state: state, selectedRouteId: rid, highlightTicket: nil,
                               canAct: false, claimable: { _ in false }, onSelect: { _ in })
                         .frame(height: 300)
-                        .background(RoundedRectangle(cornerRadius: 16).fill(Color(UIColor.tertiarySystemBackground)))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.07)))
+                        .background(
+                            ZStack {
+                                RadialGradient(colors: [Color(hex: 0xEFE3CB), Color(hex: 0xE2D0AE)],
+                                               center: .center, startRadius: 10, endRadius: 320)
+                                Paper.grain.resizable(resizingMode: .tile).opacity(0.4).blendMode(.multiply)
+                            }
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Palette.brassHair, lineWidth: 1))
                 } else if !state.lastPublicDraw.isEmpty {
                     HStack(spacing: 8) {
                         ForEach(Array(state.lastPublicDraw.enumerated()), id: \.offset) { _, card in
-                            CardTile(card: card, selected: false).frame(width: 46)
+                            EnamelCard(card: card, height: 64).frame(width: 46)
                         }
                     }
                     .padding(.vertical, 16)
                 } else {
                     Image(systemName: "rectangle.stack.fill")
-                        .font(.system(size: 44)).foregroundStyle(Color.brand)
+                        .font(.system(size: 44)).foregroundStyle(Palette.brass)
                         .padding(.vertical, 20)
                 }
 
-                Button(action: onContinue) {
-                    Label("Your turn — continue", systemImage: "arrow.right.circle.fill")
-                        .frame(maxWidth: .infinity).padding(.vertical, 4)
-                }
-                .buttonStyle(.borderedProminent).tint(Color.brand)
+                Button(action: onContinue) { Label("Your Turn — Continue", systemImage: "arrow.right.circle.fill") }
+                    .buttonStyle(BrassButtonStyle())
             }
             .padding(20)
         }

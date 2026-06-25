@@ -10,48 +10,44 @@ struct ServerStatusView: View {
     let onExpand: () -> Void
 
     var body: some View {
-        Group {
-            if isExpanded { expanded } else { compact }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(UIColor.systemBackground))
+        Group { if isExpanded { expanded } else { compact } }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .paper()
     }
 
     private var compact: some View {
         Button(action: onExpand) {
-            HStack(spacing: 12) {
-                ZStack { RoundedRectangle(cornerRadius: 10).fill(Color.brand); Image(systemName: "tram.fill").foregroundStyle(.white) }
-                    .frame(width: 40, height: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Ticket to Text").font(.headline)
-                    Text("Tap to start a game").font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 13) {
+                TrainBadge(color: Palette.carRed, size: 50)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Ticket to Text").font(.slab(19, .bold)).foregroundStyle(Palette.ink)
+                    Text("Tap to start a game").font(.sans(12.5, .semibold)).foregroundStyle(Palette.sepia)
                 }
                 Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(.secondary).font(.footnote)
+                Image(systemName: "chevron.right").font(.system(size: 17, weight: .bold)).foregroundStyle(Palette.brass)
             }
-            .padding(12)
+            .stub(Palette.parchment, corner: 18, padding: 16)
         }
         .buttonStyle(.plain)
+        .padding(10)
     }
 
     private var expanded: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "tram.fill").font(.largeTitle).foregroundStyle(Color.brand)
-            Text("Ticket to Text").font(.title2.bold())
+        VStack(spacing: 16) {
+            TrainBadge(color: Palette.carRed, size: 72)
+            Text("Ticket to Text").font(.slab(26, .bold)).foregroundStyle(Palette.ink)
             if loading {
-                ProgressView()
+                ProgressView().tint(Palette.brass)
             } else if let error {
-                Text("Couldn't reach the game server").font(.subheadline.weight(.medium))
-                Text(error).font(.caption2).foregroundStyle(.red).multilineTextAlignment(.center).padding(.horizontal)
+                Text("Couldn't reach the game server").font(.slab(15, .semibold)).foregroundStyle(Palette.ink)
+                Text(error).font(.sans(11)).foregroundStyle(Palette.danger).multilineTextAlignment(.center).padding(.horizontal)
             } else {
-                Text("Happy Birthday Dad!").font(.title3.weight(.bold)).foregroundStyle(Color.brand)
+                Text("Happy Birthday Dad!").font(.slab(19, .bold)).foregroundStyle(Palette.brass)
             }
-            Button(action: onNewGame) {
-                Label("Start a new game", systemImage: "play.fill").frame(maxWidth: .infinity).padding(.vertical, 4)
-            }
-            .buttonStyle(.borderedProminent).tint(Color.brand)
-            .padding(.horizontal, 40)
+            Button(action: onNewGame) { Label("Start a New Game", systemImage: "play.fill") }
+                .buttonStyle(BrassButtonStyle())
+                .padding(.horizontal, 30)
         }
-        .padding()
+        .padding(24)
     }
 }

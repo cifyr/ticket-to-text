@@ -30,8 +30,8 @@ private struct MoveRecapImage: View {
     var body: some View {
         VStack(spacing: 8) {
             Text(caption)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(Color.brand)
+                .font(.system(size: 15, weight: .bold, design: .serif))
+                .foregroundStyle(Palette.ink)
                 .lineLimit(1).minimumScaleFactor(0.6)
                 .padding(.top, 6).padding(.horizontal, 10)
 
@@ -42,7 +42,13 @@ private struct MoveRecapImage: View {
             if state.lastClaimedRouteId == nil { bottomStrip }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(UIColor.secondarySystemBackground))
+        .background(
+            ZStack {
+                RadialGradient(colors: [Color(hex: 0xEFE3CB), Color(hex: 0xE2D0AE)],
+                               center: .center, startRadius: 10, endRadius: 320)
+                Paper.grain.resizable(resizingMode: .tile).opacity(0.4).blendMode(.multiply)
+            }
+        )
     }
 
     @ViewBuilder private var bottomStrip: some View {
@@ -64,10 +70,11 @@ private struct MoveRecapImage: View {
 // Face-down card to show a blind draw without revealing the card.
 private struct CardBackTile: View {
     var body: some View {
-        RoundedRectangle(cornerRadius: 7)
-            .fill(LinearGradient(colors: [Color.gray, Color(white: 0.35)], startPoint: .top, endPoint: .bottom))
+        RoundedRectangle(cornerRadius: 8)
+            .fill(LinearGradient(colors: [Color(hex: 0x3A322A), Color(hex: 0x231D17)],
+                                 startPoint: .topLeading, endPoint: .bottomTrailing))
             .frame(height: 40)
-            .overlay(Image(systemName: "tram.fill").font(.caption2).foregroundStyle(.white.opacity(0.85)))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(.primary.opacity(0.25), lineWidth: 0.5))
+            .overlay(Image(systemName: "train.side.front.car").font(.caption2).foregroundStyle(Palette.brass))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.black.opacity(0.35), lineWidth: 1))
     }
 }

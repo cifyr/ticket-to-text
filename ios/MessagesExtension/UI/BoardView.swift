@@ -41,8 +41,7 @@ struct BoardView: View {
     }
 }
 
-// Bigger board the user can pan and zoom. Fit mode shows the whole map; the
-// zoom button enlarges it and the user drags to move around.
+// Bigger board the user can pan and zoom, framed like an antique rail map.
 struct BoardArea: View {
     let state: GameState
     let selectedRouteId: Int?
@@ -64,23 +63,41 @@ struct BoardArea: View {
             let contentW = fitW * scale
             let contentH = fitW * aspect * scale
 
-            ScrollView([.horizontal, .vertical], showsIndicators: true) {
+            ScrollView([.horizontal, .vertical], showsIndicators: false) {
                 BoardView(state: state, selectedRouteId: selectedRouteId, highlightTicket: highlightTicket,
                           canAct: canAct, claimable: claimable, onSelect: onSelect, showNames: zoomed)
                     .frame(width: contentW, height: contentH)
                     .frame(minWidth: geo.size.width, minHeight: geo.size.height) // center when small
             }
-            .background(RoundedRectangle(cornerRadius: 18).fill(Color(UIColor.tertiarySystemBackground)))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.primary.opacity(0.07)))
+            .background(mapSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.brassHair, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 14).inset(by: 5)
+                .stroke(Palette.brassHair, lineWidth: 1).allowsHitTesting(false))
+            .overlay(alignment: .bottomLeading) {
+                Text("RAIL MAP · 1908").font(.slab(10, .bold)).tracking(3)
+                    .foregroundStyle(Palette.sepia.opacity(0.55)).padding(12)
+            }
             .overlay(alignment: .topTrailing) {
                 Button { withAnimation(.snappy) { zoomed.toggle() } } label: {
                     Image(systemName: zoomed ? "minus.magnifyingglass" : "plus.magnifyingglass")
-                        .font(.body.weight(.semibold)).padding(8)
-                        .background(.thinMaterial, in: Circle())
+                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(Palette.sepia)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(Palette.parchment).overlay(Circle().stroke(Palette.brassHair, lineWidth: 1)))
                 }
                 .padding(8)
             }
+            .shadow(color: Palette.ink.opacity(0.12), radius: 6, y: 3)
         }
+    }
+
+    private var mapSurface: some View {
+        ZStack {
+            RadialGradient(colors: [Color(hex: 0xEFE3CB), Color(hex: 0xE2D0AE), Color(hex: 0xD6C29C)],
+                           center: UnitPoint(x: 0.3, y: 0.15), startRadius: 10, endRadius: 520)
+            Paper.grain.resizable(resizingMode: .tile).opacity(0.45).blendMode(.multiply)
+        }
+        .allowsHitTesting(false)
     }
 }
 
@@ -112,25 +129,28 @@ enum BoardGeometry {
             let owner = route.claimedBy
             let claimable = owner == nil && highlightClaimable(route)
             let fill: Color = owner != nil ? ownerColor(owner!)
-                : (claimable ? paintColor(route.color) : paintColor(route.color).opacity(0.45))
+                : (claimable ? paintColor(route.color) : paintColor(route.color).opacity(0.4))
 
             if route.id == selected { // selection / seized-route halo
                 var halo = Path(); halo.move(to: a); halo.addLine(to: b)
-                ctx.stroke(halo, with: .color(Color.brand.opacity(0.35)),
+                ctx.stroke(halo, with: .color(Palette.brass.opacity(0.4)),
                            style: StrokeStyle(lineWidth: 16, lineCap: .round))
             }
 
-            drawTrack(in: ctx, from: a, to: b, cars: route.length, fill: fill, ghost: owner == nil && !claimable)
+            drawTrack(in: ctx, from: a, to: b, cars: route.length, fill: fill,
+                      ghost: owner == nil && !claimable, glow: claimable)
 
             if route.id == selected && dotsOnSelected { drawDots(in: ctx, from: a, to: b, cars: route.length) }
 
             if showLengthPips {
                 let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
-                ctx.fill(Path(ellipseIn: CGRect(x: mid.x - 8, y: mid.y - 8, width: 16, height: 16)),
-                         with: .color(owner != nil ? ownerColor(owner!) : paintColor(route.color)))
-                ctx.stroke(Path(ellipseIn: CGRect(x: mid.x - 8, y: mid.y - 8, width: 16, height: 16)),
-                           with: .color(.white.opacity(0.9)), lineWidth: 1)
-                ctx.draw(Text("\(route.length)").font(.system(size: 10, weight: .bold)).foregroundStyle(.white), at: mid)
+                let pip = CGRect(x: mid.x - 8, y: mid.y - 8, width: 16, height: 16)
+                ctx.fill(Path(ellipseIn: pip), with: .radialGradient(
+                    Gradient(colors: [Palette.brassLight, Palette.brass, Palette.brassDark]),
+                    center: CGPoint(x: mid.x - 2, y: mid.y - 2), startRadius: 0, endRadius: 11))
+                ctx.stroke(Path(ellipseIn: pip), with: .color(Color(hex: 0x7A5710)), lineWidth: 1)
+                ctx.draw(Text("\(route.length)").font(.system(size: 10, weight: .bold, design: .serif))
+                    .foregroundStyle(Color(hex: 0x3A2A0C)), at: mid)
             }
         }
 
@@ -139,29 +159,42 @@ enum BoardGeometry {
                 // Recap image: subtle city markers so only the seized rail stands out.
                 let r: CGFloat = 2.5
                 ctx.fill(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)),
-                         with: .color(.gray.opacity(0.55)))
+                         with: .color(Palette.sepia.opacity(0.55)))
                 continue
             }
             let r: CGFloat = 7
-            ctx.fill(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)), with: .color(.white))
-            ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)),
-                       with: .color(Color.brand), lineWidth: 2)
-            if showNames {
-                ctx.draw(Text(GameMap.cities[i].name).font(.system(size: 14, weight: .semibold)).foregroundStyle(.primary),
-                         at: CGPoint(x: p.x, y: p.y - 15))
-            }
+            let rect = CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)
+            ctx.fill(Path(ellipseIn: rect), with: .radialGradient(
+                Gradient(colors: [Palette.brassLight, Palette.brass, Palette.brassDark]),
+                center: CGPoint(x: p.x - 2, y: p.y - 2), startRadius: 0, endRadius: r + 2))
+            ctx.stroke(Path(ellipseIn: rect), with: .color(Color(hex: 0x5E430C)), lineWidth: 1.5)
+            if showNames { drawCityName(GameMap.cities[i].name, at: CGPoint(x: p.x, y: p.y - 17), in: ctx) }
         }
 
         if let t = highlightTicket {
             let a = points[t.cityA], b = points[t.cityB]
             var line = Path(); line.move(to: a); line.addLine(to: b)
-            ctx.stroke(line, with: .color(Color.brand),
+            ctx.stroke(line, with: .color(Palette.brass),
                        style: StrokeStyle(lineWidth: 4, lineCap: .round, dash: [3, 7]))
             for c in [a, b] {
                 ctx.stroke(Path(ellipseIn: CGRect(x: c.x - 12, y: c.y - 12, width: 24, height: 24)),
-                           with: .color(Color.brand), lineWidth: 3)
+                           with: .color(Palette.brass), lineWidth: 3)
             }
         }
+    }
+
+    // City label set on a small parchment chip so it stays legible over the map.
+    private static func drawCityName(_ name: String, at center: CGPoint, in ctx: GraphicsContext) {
+        let text = Text(name).font(.system(size: 11, weight: .semibold, design: .serif))
+            .foregroundStyle(Palette.ink)
+        let resolved = ctx.resolve(text)
+        let s = resolved.measure(in: CGSize(width: 200, height: 40))
+        let chip = CGRect(x: center.x - s.width / 2 - 5, y: center.y - s.height / 2 - 2,
+                          width: s.width + 10, height: s.height + 4)
+        let path = Path(roundedRect: chip, cornerRadius: 4)
+        ctx.fill(path, with: .color(Palette.parchment.opacity(0.92)))
+        ctx.stroke(path, with: .color(Palette.brassHair), lineWidth: 1)
+        ctx.draw(resolved, at: center)
     }
 
     // Beads along a seized rail (used in the move-recap image instead of pips).
@@ -172,28 +205,43 @@ enum BoardGeometry {
             let c = CGPoint(x: a.x + dx * t, y: a.y + dy * t)
             let r: CGFloat = 3.5
             let dot = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
-            ctx.fill(dot, with: .color(.white))
-            ctx.stroke(dot, with: .color(Color.brand), lineWidth: 1.5)
+            ctx.fill(dot, with: .color(Palette.brass))
+            ctx.stroke(dot, with: .color(Color(hex: 0x5E430C)), lineWidth: 1.5)
         }
     }
 
+    // Row of skewed enamel train cars along the route.
     private static func drawTrack(in ctx: GraphicsContext, from a: CGPoint, to b: CGPoint,
-                                  cars: Int, fill: Color, ghost: Bool) {
+                                  cars: Int, fill: Color, ghost: Bool, glow: Bool) {
         let dx = b.x - a.x, dy = b.y - a.y
         let length = max(hypot(dx, dy), 1)
         let angle = atan2(dy, dx)
-        let carLen = (length / CGFloat(cars)) * 0.72
+        let carLen = (length / CGFloat(cars)) * 0.74
+        let height: CGFloat = 13
         for k in 0..<cars {
             let t = (CGFloat(k) + 0.5) / CGFloat(cars)
-            let cx = a.x + dx * t, cy = a.y + dy * t
-            var car = ctx
-            car.translateBy(x: cx, y: cy)
-            car.rotate(by: .radians(angle))
-            let rect = CGRect(x: -carLen / 2, y: -3.5, width: carLen, height: 7)
-            let body = Path(roundedRect: rect, cornerRadius: 2)
-            car.fill(body, with: .color(fill))
-            car.stroke(body, with: .color(.black.opacity(ghost ? 0.15 : 0.5)), lineWidth: 1)
+            let center = CGPoint(x: a.x + dx * t, y: a.y + dy * t)
+            let car = carPath(center: center, len: carLen, height: height, angle: angle)
+            if ghost {
+                ctx.stroke(car, with: .color(fill.opacity(0.8)),
+                           style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
+            } else {
+                if glow { ctx.stroke(car, with: .color(Palette.brass.opacity(0.55)), lineWidth: 4) }
+                ctx.fill(car, with: .color(fill))
+                ctx.stroke(car, with: .color(.black.opacity(0.45)), lineWidth: 1)
+            }
         }
+    }
+
+    private static func carPath(center: CGPoint, len: CGFloat, height: CGFloat, angle: CGFloat) -> Path {
+        let s = height * 0.34
+        var p = Path()
+        p.move(to: CGPoint(x: -len / 2 + s, y: -height / 2))
+        p.addLine(to: CGPoint(x: len / 2 + s, y: -height / 2))
+        p.addLine(to: CGPoint(x: len / 2 - s, y: height / 2))
+        p.addLine(to: CGPoint(x: -len / 2 - s, y: height / 2))
+        p.closeSubpath()
+        return p.applying(CGAffineTransform(translationX: center.x, y: center.y).rotated(by: angle))
     }
 
     static func distance(from p: CGPoint, toSegment a: CGPoint, _ b: CGPoint) -> CGFloat {

@@ -8,21 +8,29 @@ struct LogSheet: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            ScrollView {
                 if log.isEmpty {
-                    Text("No moves yet.").foregroundStyle(.secondary)
+                    Text("No moves yet.").font(.sans(14)).foregroundStyle(Palette.sepia).padding(.top, 40)
                 } else {
-                    List(Array(log.enumerated()).reversed(), id: \.offset) { _, entry in
-                        HStack(alignment: .top, spacing: 8) {
-                            Circle().fill(ownerColor(entry.actor)).frame(width: 8, height: 8).padding(.top, 6)
-                            Text("\(name(entry.actor)) \(entry.text)").font(.subheadline)
+                    VStack(spacing: 8) {
+                        ForEach(Array(log.enumerated()).reversed(), id: \.offset) { _, entry in
+                            HStack(alignment: .top, spacing: 10) {
+                                EnamelToken(color: ownerColor(entry.actor),
+                                            label: String(name(entry.actor).prefix(1)).uppercased(), size: 22)
+                                Text("\(name(entry.actor)) \(entry.text)").font(.sans(13)).foregroundStyle(Palette.ink)
+                                Spacer(minLength: 0)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .stub(Palette.parchmentDeep, corner: 10, padding: 10)
                         }
                     }
+                    .padding(16)
                 }
             }
-            .navigationTitle("Game log")
+            .background(PaperFill())
+            .navigationTitle("Game Log")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.tint(Palette.brass) } }
         }
     }
 }

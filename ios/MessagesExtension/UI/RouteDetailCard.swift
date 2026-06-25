@@ -14,38 +14,41 @@ struct RouteDetailCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(GameMap.label(route)).font(.subheadline.bold())
+            HStack(spacing: 8) {
+                Text(GameMap.label(route)).font(.slab(16, .bold)).foregroundStyle(Palette.ink).lineLimit(2)
+                Spacer(minLength: 4)
+                Button(action: onClose) {
+                    Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).foregroundStyle(Palette.sepia)
+                        .frame(width: 28, height: 28)
+                        .background(Circle().fill(Palette.parchment).overlay(Circle().stroke(Palette.hairline, lineWidth: 1)))
+                }
+                .buttonStyle(.plain)
+            }
 
             HStack(spacing: 6) {
                 ForEach(0..<route.length, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 3).fill(paintColor(route.color)).frame(width: 18, height: 10)
-                        .overlay(RoundedRectangle(cornerRadius: 3).stroke(.black.opacity(0.4), lineWidth: 0.5))
+                    Parallelogram()
+                        .fill(paintColor(route.color))
+                        .frame(width: 20, height: 11)
+                        .overlay(Parallelogram().stroke(.black.opacity(0.4), lineWidth: 0.75))
                 }
-                Text(costText).font(.caption).foregroundStyle(.secondary)
+                Text(costText).font(.sans(11)).foregroundStyle(Palette.sepia)
             }
 
             if let owner = route.claimedBy {
                 Label("Claimed by Player \(owner + 1)", systemImage: "checkmark.seal.fill")
-                    .font(.caption).foregroundStyle(ownerColor(owner))
-                Button(action: onClose) { Label("Close", systemImage: "xmark").frame(maxWidth: .infinity) }
-                    .buttonStyle(.bordered)
+                    .font(.sans(12, .semibold)).foregroundStyle(ownerColor(owner))
             } else {
-                Text(affordText).font(.caption).foregroundStyle(affordable ? .primary : .secondary)
-                HStack(spacing: 10) {
-                    Button(action: onClose) {
-                        Label("Close", systemImage: "xmark").frame(maxWidth: .infinity).padding(.vertical, 2)
-                    }
-                    .buttonStyle(.bordered)
-                    Button(action: onClaim) {
-                        Label(affordable ? "Claim" : "Can't claim yet", systemImage: "hand.tap.fill")
-                            .frame(maxWidth: .infinity).padding(.vertical, 2)
-                    }
-                    .buttonStyle(.borderedProminent).tint(Color.brand).disabled(!affordable)
+                Text(affordText).font(.sans(11)).foregroundStyle(affordable ? Palette.ink : Palette.sepiaLight)
+                Button(action: onClaim) {
+                    Label(affordable ? "Claim route" : "Can't claim yet", systemImage: "hand.tap.fill")
                 }
+                .buttonStyle(BrassButtonStyle())
+                .disabled(!affordable)
+                .opacity(affordable ? 1 : 0.55)
             }
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color(UIColor.secondarySystemBackground)))
+        .stub(Palette.parchment, corner: 14, padding: 14, stroke: Palette.brassHair)
     }
 
     private var costText: String {
@@ -63,4 +66,18 @@ struct RouteDetailCard: View {
     }
 
     private func count(_ c: Card) -> Int { hand.filter { $0 == c }.count }
+}
+
+// Skewed train-car shape for cost previews.
+struct Parallelogram: Shape {
+    func path(in r: CGRect) -> Path {
+        let s = r.height * 0.34
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX + s, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX - s, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
+        p.closeSubpath()
+        return p
+    }
 }

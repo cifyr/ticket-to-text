@@ -12,48 +12,84 @@ struct FinalScoreView: View {
     var body: some View {
         let scores = Scoring.finalScores(state)
         let winner = Scoring.finalWinner(state)
-        return VStack(spacing: 12) {
-            Image(systemName: "flag.checkered").font(.largeTitle).foregroundStyle(Color.brand)
-            Text(winner == nil ? "Tie game" : "\(name(winner!)) wins!").font(.title3.bold())
+        let order = (0..<scores.count).sorted { scores[$0].total > scores[$1].total }
+        return ScrollView {
+            VStack(spacing: 16) {
+                Text("End of the Line").font(.slab(12, .bold)).tracking(4).textCase(.uppercase)
+                    .foregroundStyle(Palette.sepiaLight)
 
-            VStack(spacing: 8) {
-                ForEach(0..<scores.count, id: \.self) { p in
-                    column(player: p, score: scores[p], winner: winner)
+                if let w = winner { certificate(player: w, score: scores[w]) }
+
+                VStack(spacing: 10) {
+                    ForEach(Array(order.enumerated()), id: \.offset) { rank, p in
+                        standingRow(rank: rank + 1, player: p, score: scores[p])
+                    }
                 }
-            }
 
-            Button("Start a new game", action: onNewGame)
-                .buttonStyle(.borderedProminent).tint(Color.brand)
+                Button(action: onNewGame) { Label("Start a New Game", systemImage: "arrow.clockwise") }
+                    .buttonStyle(BrassButtonStyle())
+            }
+            .padding(20)
         }
-        .frame(maxWidth: .infinity).padding(16)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Color(UIColor.secondarySystemBackground)))
+        .background(PaperFill())
         .onAppear { Feedback.win() }
     }
 
-    private func column(player: Int, score: FinalScore, winner: Int?) -> some View {
+    private func certificate(player: Int, score: FinalScore) -> some View {
         VStack(spacing: 6) {
-            HStack {
-                Circle().fill(ownerColor(player)).frame(width: 10, height: 10)
-                Text(name(player)).font(.subheadline.bold()).foregroundStyle(ownerColor(player))
+            ZStack {
+                Circle().fill(RadialGradient(colors: [Color(hex: 0xF2D277), Palette.brass, Palette.brassDark],
+                                             center: UnitPoint(x: 0.35, y: 0.28), startRadius: 1, endRadius: 34))
+                    .frame(width: 62, height: 62)
+                    .overlay(Circle().stroke(Color(hex: 0x7A5710), lineWidth: 3))
+                    .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
+                Image(systemName: "rosette").font(.system(size: 26, weight: .bold)).foregroundStyle(Color(hex: 0x3A2A0C))
+            }
+            Text("Winner").font(.slab(13, .bold)).tracking(4).textCase(.uppercase).foregroundStyle(Color(hex: 0xB97E1C))
+            Text(name(player).uppercased()).font(.slab(28, .bold)).foregroundStyle(Palette.ink)
+                .lineLimit(1).minimumScaleFactor(0.6)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(score.total)").font(.sans(24, .heavy)).foregroundStyle(Color(hex: 0xF2D277))
+                Text("POINTS").font(.slab(11, .semibold)).tracking(2).foregroundStyle(Palette.brass)
+            }
+            .padding(.horizontal, 16).padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 9).fill(Palette.ink))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(22)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(LinearGradient(colors: [Color(hex: 0xF3E9D4), Palette.parchmentDeep], startPoint: .top, endPoint: .bottom))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.brass, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 9).inset(by: 6).stroke(Palette.brassHair, lineWidth: 1))
+                .shadow(color: Palette.ink.opacity(0.22), radius: 8, y: 4)
+        )
+    }
+
+    private func standingRow(rank: Int, player: Int, score: FinalScore) -> some View {
+        VStack(spacing: 7) {
+            HStack(spacing: 12) {
+                Text("\(rank)").font(.slab(15, .bold)).foregroundStyle(Palette.sepiaLight).frame(width: 18)
+                EnamelToken(color: ownerColor(player), label: String(name(player).prefix(1)).uppercased(), size: 24)
+                Text(name(player)).font(.slab(16, .bold)).foregroundStyle(Palette.ink)
                 Spacer()
-                Text("\(score.total)").font(.title3.bold().monospacedDigit())
+                Text("\(score.total)").font(.sans(17, .heavy)).foregroundStyle(Palette.sepia)
             }
             HStack(spacing: 12) {
                 tag("Routes", score.routeScore)
                 tag("Tickets", score.ticketScore)
                 tag("Longest \(score.longestRoute)", score.longestBonus)
+                Spacer()
             }
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(UIColor.tertiarySystemBackground)))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(winner == player ? ownerColor(player) : .clear, lineWidth: 2))
+        .stub(Palette.parchmentDeep, corner: 10, padding: 12)
     }
 
     private func tag(_ label: String, _ value: Int) -> some View {
         HStack(spacing: 3) {
-            Text(label).font(.caption2).foregroundStyle(.secondary)
-            Text(value >= 0 ? "+\(value)" : "\(value)").font(.caption2.monospacedDigit())
-                .foregroundStyle(value < 0 ? .red : .primary)
+            Text(label).font(.sans(10)).foregroundStyle(Palette.sepiaLight)
+            Text(value >= 0 ? "+\(value)" : "\(value)").font(.sans(10, .bold))
+                .foregroundStyle(value < 0 ? Palette.danger : Palette.ink)
         }
     }
 }

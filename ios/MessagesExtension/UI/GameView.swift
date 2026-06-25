@@ -22,6 +22,7 @@ struct GameView: View {
     @State private var draft: [DrawPick] = []
     @State private var recapDismissedFor = -1
     @State private var confirmedSeat: Int?
+    @State private var page = 0   // 0 = map, 1 = cards
 
     private var mySeat: Int {
         Game.actingIndex(state, participantID: localParticipantID) ?? state.currentPlayer
@@ -46,6 +47,8 @@ struct GameView: View {
     private func name(_ seat: Int) -> String {
         (state.playerNames[safe: seat] ?? nil) ?? "Player \(seat + 1)"
     }
+
+    private func initial(_ seat: Int) -> String { String(name(seat).prefix(1)).uppercased() }
 
     // Show the last move to the receiver before they play.
     private var pendingRecap: Bool {
@@ -82,201 +85,284 @@ struct GameView: View {
                              showTickets = false
                              apply(.drawTickets, caption: "drew \(min(Game.startingTickets, state.ticketDeck.count)) tickets")
                          },
-                         onShow: { t in showTickets = false; flashTicket(t) })
+                         onShow: { t in showTickets = false; page = 0; flashTicket(t) })
         }
     }
 
     // MARK: Compact
 
     private var compact: some View {
-        Button(action: onRequestExpand) {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10).fill(Color.brand)
-                    Image(systemName: "tram.fill").foregroundStyle(.white)
-                }.frame(width: 40, height: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Ticket to Text").font(.headline)
-                    Text(statusText).font(.caption).foregroundStyle(.secondary)
+        Button(action: onRequestExpand) { compactCard }
+            .buttonStyle(.plain)
+            .padding(10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .paper()
+    }
+
+    private var aboard: Int { max(2, state.playerIDs.compactMap { $0 }.count) }
+
+    private var compactCard: some View {
+        VStack(spacing: 11) {
+            HStack(spacing: 13) {
+                TrainBadge(color: Palette.carRed, size: 50)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Ticket to Text").font(.slab(19, .bold)).foregroundStyle(Palette.ink)
+                    Text(statusText).font(.sans(12.5, .semibold)).foregroundStyle(Palette.sepia).lineLimit(1)
                 }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(.secondary).font(.footnote)
-            }.padding(12)
-        }.buttonStyle(.plain)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right").font(.system(size: 17, weight: .bold)).foregroundStyle(Palette.brass)
+            }
+            VStack(spacing: 9) {
+                DashedRule()
+                HStack {
+                    Text("Tap to board the table").font(.slab(10, .semibold))
+                        .tracking(1.4).textCase(.uppercase).foregroundStyle(Palette.sepiaLight)
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Circle().fill(Palette.success).frame(width: 6, height: 6)
+                        Text("\(aboard) aboard").font(.sans(11, .heavy)).foregroundStyle(Palette.success)
+                    }
+                }
+            }
+        }
+        .stub(Palette.parchment, corner: 18, padding: 16)
     }
 
     // MARK: Expanded
 
     private var expanded: some View {
         VStack(spacing: 10) {
-            topBar
-            turnBoard
-            bottom
-            if let errorText { Text(errorText).font(.caption).foregroundStyle(.red) }
+            header
+            turnBar
+            content
+            if let errorText { Text(errorText).font(.sans(12)).foregroundStyle(Palette.danger) }
         }
         .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .paper()
     }
 
-    private var topBar: some View {
+    private var header: some View {
+        HStack(spacing: 10) {
+            TrainBadge(color: Palette.carRed, size: 38)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Ticket to Text").font(.slab(18, .bold)).foregroundStyle(Palette.ink)
+                Text(statusText).font(.sans(11, .semibold)).foregroundStyle(Palette.sepia).lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            RailIconButton(system: "ticket.fill", badge: "\(state.players[mySeat].tickets.count)") { showTickets = true }
+            RailIconButton(system: "clock.arrow.circlepath") { showLog = true }
+            RailIconButton(system: "questionmark") { showHelp = true }
+            RailIconButton(system: "arrow.clockwise") { onNewGame() }
+        }
+    }
+
+    // Player discs (active one pulses) + the local player's trains and score.
+    private var turnBar: some View {
         HStack(spacing: 8) {
-            Image(systemName: "tram.fill").foregroundStyle(Color.brand)
-            Text("Ticket to Text").font(.headline)
-            Spacer()
-            Button { showTickets = true } label: {
-                Label("\(state.players[mySeat].tickets.count)", systemImage: "ticket.fill").font(.caption.weight(.semibold))
-            }.buttonStyle(.bordered)
-            Button { showLog = true } label: { Image(systemName: "clock.arrow.circlepath") }.buttonStyle(.bordered).clipShape(Circle())
-            Button { showHelp = true } label: { Image(systemName: "questionmark") }.buttonStyle(.bordered).clipShape(Circle())
-            Button { onNewGame() } label: { Image(systemName: "arrow.clockwise") }.buttonStyle(.bordered).clipShape(Circle())
-        }
-    }
-
-    private var turnBoard: some View {
-        VStack(spacing: 8) {
-            namePlates
-            BoardArea(state: state, selectedRouteId: selectedRouteId, highlightTicket: highlightTicket,
-                      canAct: effectiveCanAct, claimable: { Game.canClaim(state, $0, player: mySeat) },
-                      onSelect: { selectedRouteId = $0 })
-                .frame(maxHeight: .infinity)
-        }
-    }
-
-    // Whose turn it is shown purely by highlighting their name. Wraps to a grid
-    // for 3-4 players.
-    private var namePlates: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: min(state.players.count, 2)), spacing: 8) {
-            ForEach(0..<state.players.count, id: \.self) { p in
-                let active = !Game.isGameOver(state) && state.currentPlayer == p
-                let mine = Game.assignedIndex(state, participantID: localParticipantID) == p
-                VStack(spacing: 1) {
-                    HStack(spacing: 6) {
-                        Circle().fill(ownerColor(p)).frame(width: 9, height: 9)
-                        Text(name(p) + (mine ? " (you)" : "")).font(.caption.weight(active ? .bold : .regular))
-                            .lineLimit(1)
-                    }
-                    HStack(spacing: 8) {
-                        Text("\(state.players[p].score)").font(.subheadline.bold().monospacedDigit())
-                            .foregroundStyle(ownerColor(p)).contentTransition(.numericText())
-                        Label("\(state.players[p].trains)", systemImage: "tram.fill")
-                            .font(.caption2).foregroundStyle(.secondary)
-                        if active { Text(mine ? "● your move" : "● to move").font(.caption2.bold()).foregroundStyle(ownerColor(p)) }
-                    }
+            HStack(spacing: 7) {
+                ForEach(0..<state.players.count, id: \.self) { p in
+                    EnamelToken(color: ownerColor(p), label: initial(p),
+                                active: !Game.isGameOver(state) && state.currentPlayer == p, size: 30)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 7)
-                .background(Capsule().fill(active ? ownerColor(p).opacity(0.18) : Color(UIColor.secondarySystemBackground)))
-                .overlay(Capsule().stroke(active ? ownerColor(p) : .clear, lineWidth: 1.5))
+            }
+            Spacer(minLength: 4)
+            pill {
+                Image(systemName: "train.side.front.car").font(.system(size: 12)).foregroundStyle(Palette.sepia)
+                Text("\(state.players[mySeat].trains)").font(.sans(14, .heavy)).foregroundStyle(Palette.ink)
+            }
+            pill {
+                Text("\(state.players[mySeat].score)").font(.sans(14, .heavy)).foregroundStyle(Palette.ink)
+                Text("PTS").font(.slab(9, .semibold)).tracking(1).foregroundStyle(Palette.sepiaLight)
+            }
+        }
+        .stub(Palette.parchmentDeep, corner: 13, padding: 10)
+    }
+
+    private func pill<C: View>(@ViewBuilder _ content: () -> C) -> some View {
+        HStack(spacing: 5) { content() }
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 9).fill(Palette.parchment)
+                    .overlay(RoundedRectangle(cornerRadius: 9).stroke(Palette.hairline, lineWidth: 1))
+            )
+    }
+
+    // MARK: Content (paged: map / cards) or a status panel
+
+    @ViewBuilder private var content: some View {
+        if Game.isGameOver(state) {
+            gameOverBar
+            Spacer(minLength: 0)
+        } else if needsJoin {
+            joinCard
+            Spacer(minLength: 0)
+        } else {
+            VStack(spacing: 8) {
+                TabView(selection: $page) {
+                    mapPage.tag(0)
+                    cardsPage.tag(1)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                segments
             }
         }
     }
 
-    // MARK: Bottom panel
+    private var segments: some View {
+        HStack(spacing: 0) {
+            seg("Map", 0, "map.fill")
+            seg("Cards", 1, "rectangle.on.rectangle.angled")
+        }
+        .padding(3)
+        .background(Capsule().fill(Palette.parchmentDeep).overlay(Capsule().stroke(Palette.brassHair, lineWidth: 1)))
+    }
 
-    @ViewBuilder private var bottom: some View {
-        if Game.isGameOver(state) {
-            gameOverBar
-        } else if needsJoin {
-            joinCard
-        } else if effectiveCanAct {
-            VStack(spacing: 8) {
+    private func seg(_ title: String, _ idx: Int, _ icon: String) -> some View {
+        let on = page == idx
+        return Button { withAnimation(.snappy) { page = idx } } label: {
+            HStack(spacing: 6) { Image(systemName: icon); Text(title) }
+                .font(.slab(14, .bold))
+                .foregroundStyle(on ? Color(hex: 0x3A2A0C) : Palette.sepia)
+                .frame(maxWidth: .infinity).padding(.vertical, 8)
+                .background(
+                    Capsule().fill(on
+                        ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0xD9A23B), Color(hex: 0xB97E1C)],
+                                                       startPoint: .top, endPoint: .bottom))
+                        : AnyShapeStyle(Color.clear))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: Map page
+
+    private var mapPage: some View {
+        BoardArea(state: state, selectedRouteId: selectedRouteId, highlightTicket: highlightTicket,
+                  canAct: effectiveCanAct, claimable: { Game.canClaim(state, $0, player: mySeat) },
+                  onSelect: { id in withAnimation(.snappy) { selectedRouteId = id } })
+            .overlay(alignment: .bottom) {
                 if let id = selectedRouteId, let route = state.routes.first(where: { $0.id == id }) {
                     RouteDetailCard(
                         route: route, hand: state.players[mySeat].hand, trains: state.players[mySeat].trains,
-                        affordable: Game.canClaim(state, route, player: mySeat),
+                        affordable: effectiveCanAct && Game.canClaim(state, route, player: mySeat),
                         onClaim: {
                             apply(.claim(routeId: route.id, color: nil), caption: "claimed \(GameMap.label(route))")
-                            selectedRouteId = nil
+                            withAnimation { selectedRouteId = nil }
                         },
-                        onClose: { selectedRouteId = nil })
-                } else {
-                    hintLine
-                    drawRow
+                        onClose: { withAnimation { selectedRouteId = nil } })
+                        .padding(8)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                handStrip
             }
-        } else {
-            waiting
+    }
+
+    // MARK: Cards page
+
+    private var cardsPage: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                if effectiveCanAct { drawSection } else { waiting }
+                handSection
+            }
+            .padding(.top, 4).padding(.bottom, 8)
         }
     }
 
+    private var drawSection: some View {
+        VStack(spacing: 10) {
+            SectionRule(title: "Face-up Market")
+            HStack(spacing: 8) {
+                ForEach(Array(state.market.enumerated()), id: \.offset) { i, card in
+                    EnamelCard(card: card, selected: draft.contains(.market(slot: i)), height: 58)
+                        .frame(maxWidth: .infinity)
+                        .onTapGesture { selectMarket(i, card: card) }
+                }
+                DeckTile(count: state.deck.count)
+                    .frame(maxWidth: .infinity)
+                    .onTapGesture { selectBlind() }
+            }
+            HStack(spacing: 10) {
+                Button { commitDraw() } label: { Text(draft.isEmpty ? "Draw cards" : "Draw \(draft.count)") }
+                    .buttonStyle(BrassButtonStyle()).disabled(draft.isEmpty).opacity(draft.isEmpty ? 0.55 : 1)
+                if !draft.isEmpty {
+                    Button { draft = [] } label: { Text("Clear") }
+                        .buttonStyle(QuietButtonStyle()).frame(width: 110)
+                }
+            }
+            Text(draft.isEmpty ? "Pick up to \(Game.maxDraw) cards, or tap a route on the map to claim it."
+                               : "Tap Draw to take \(draft.count), or pick more.")
+                .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
+        }
+    }
+
+    private var handSection: some View {
+        let hand = state.players[mySeat].hand
+        let held = Card.allCases.compactMap { c -> (Card, Int)? in
+            let n = hand.filter { $0 == c }.count
+            return n > 0 ? (c, n) : nil
+        }
+        return VStack(spacing: 10) {
+            SectionRule(title: "Your Cars · \(hand.count) in hand")
+            if held.isEmpty {
+                Text("No cards yet — draw some on your turn.")
+                    .font(.sans(12)).foregroundStyle(Palette.sepiaLight).padding(.vertical, 8)
+            } else {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 12) {
+                    ForEach(held, id: \.0) { card, n in
+                        EnamelCard(card: card, height: 66)
+                            .overlay(alignment: .bottomTrailing) {
+                                Text("\(n)").font(.sans(11, .heavy)).foregroundStyle(Palette.ink)
+                                    .frame(width: 20, height: 20)
+                                    .background(Circle().fill(Palette.parchment)
+                                        .overlay(Circle().stroke(Palette.brassHair, lineWidth: 1)))
+                                    .offset(x: 5, y: 5)
+                            }
+                    }
+                }
+            }
+        }
+        .stub(Palette.parchmentDeep, corner: 13, padding: 12)
+    }
+
+    // MARK: Status panels
+
     private var joinCard: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "person.badge.plus").font(.title2).foregroundStyle(Color.brand)
-            Text("Open seat: \(name(state.currentPlayer))").font(.subheadline.weight(.semibold))
+        VStack(spacing: 10) {
+            Image(systemName: "person.badge.plus").font(.title2).foregroundStyle(Palette.brass)
+            Text("Open seat: \(name(state.currentPlayer))").font(.slab(17, .bold)).foregroundStyle(Palette.ink)
             Text("Join to take this turn. Set your name in the ? menu.")
-                .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                .font(.sans(12)).foregroundStyle(Palette.sepia).multilineTextAlignment(.center)
             Button { withAnimation { confirmedSeat = state.currentPlayer } } label: {
                 Label("Join as \(name(state.currentPlayer))", systemImage: "checkmark")
-                    .frame(maxWidth: .infinity).padding(.vertical, 2)
             }
-            .buttonStyle(.borderedProminent).tint(Color.brand)
+            .buttonStyle(BrassButtonStyle())
         }
-        .frame(maxWidth: .infinity).padding(14)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color(UIColor.secondarySystemBackground)))
+        .frame(maxWidth: .infinity)
+        .stub(Palette.parchmentDeep, corner: 14, padding: 18)
     }
 
     private var gameOverBar: some View {
-        HStack {
-            Image(systemName: "flag.checkered").foregroundStyle(Color.brand)
-            Text(statusText).font(.subheadline.bold())
+        HStack(spacing: 10) {
+            Image(systemName: "flag.checkered").foregroundStyle(Palette.brass)
+            Text(statusText).font(.slab(17, .bold)).foregroundStyle(Palette.ink)
             Spacer()
-            Button("Results") { showResults = true }.buttonStyle(.bordered)
-            Button("New") { onNewGame() }.buttonStyle(.borderedProminent).tint(Color.brand)
+            Button { showResults = true } label: { Text("Results") }.buttonStyle(QuietButtonStyle()).frame(width: 100)
+            Button { onNewGame() } label: { Text("New") }.buttonStyle(BrassButtonStyle()).frame(width: 90)
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color(UIColor.secondarySystemBackground)))
+        .stub(Palette.parchmentDeep, corner: 14, padding: 12)
         .onAppear { showResults = true }
-    }
-
-    private var hintLine: some View {
-        Text(draft.isEmpty ? "Tap a route to see its cost, or pick cards to draw."
-                           : "Tap Draw to take \(draft.count), or pick more.")
-            .font(.caption).foregroundStyle(.secondary)
-    }
-
-    private var drawRow: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 6) {
-                ForEach(Array(state.market.enumerated()), id: \.offset) { i, card in
-                    CardTile(card: card, selected: draft.contains(.market(slot: i)))
-                        .onTapGesture { selectMarket(i, card: card) }
-                }
-                DeckTile(count: state.deck.count).onTapGesture { selectBlind() }
-            }
-            HStack {
-                Button { commitDraw() } label: { Text("Draw \(draft.count)").frame(maxWidth: .infinity) }
-                    .buttonStyle(.borderedProminent).tint(Color.brand).disabled(draft.isEmpty)
-                if !draft.isEmpty { Button("Clear") { draft = [] }.buttonStyle(.bordered) }
-            }
-        }
-    }
-
-    private var handStrip: some View {
-        let hand = state.players[mySeat].hand
-        return HStack(spacing: 5) {
-            ForEach(Card.allCases, id: \.self) { card in
-                let count = hand.filter { $0 == card }.count
-                HStack(spacing: 3) {
-                    Circle().fill(cardColor(card)).frame(width: 10, height: 10)
-                        .overlay(Circle().stroke(.secondary.opacity(0.4), lineWidth: 0.5))
-                    Text("\(count)").font(.caption2.weight(.semibold).monospacedDigit())
-                }
-                .padding(.horizontal, 6).padding(.vertical, 4)
-                .background(Capsule().fill(cardColor(card).opacity(0.14)))
-                .opacity(count == 0 ? 0.35 : 1)
-            }
-        }
     }
 
     private var waiting: some View {
         VStack(spacing: 6) {
-            ProgressView()
-            Text("Waiting for \(name(state.currentPlayer))").font(.subheadline.weight(.medium))
-            Text("Tap routes to inspect the board. Reopen after they send their turn.")
-                .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            ProgressView().tint(Palette.brass)
+            Text("Waiting for \(name(state.currentPlayer))").font(.slab(15, .semibold)).foregroundStyle(Palette.ink)
+            Text("Inspect the board, then reopen after they send their turn.")
+                .font(.sans(11)).foregroundStyle(Palette.sepia).multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity).padding(.vertical, 12)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color(UIColor.secondarySystemBackground)))
+        .frame(maxWidth: .infinity).padding(.vertical, 14)
+        .stub(Palette.parchmentDeep, corner: 14, padding: 8)
     }
 
     // MARK: Actions
@@ -325,83 +411,36 @@ struct GameView: View {
             }
         }
         if Game.assignedIndex(state, participantID: localParticipantID) == state.currentPlayer {
-            return "Your move"
+            return "Your turn"
         }
-        return "\(name(state.currentPlayer))'s move"
+        return "\(name(state.currentPlayer))'s turn"
     }
 }
 
-// MARK: - Card tiles
+// MARK: - Card tiles (face-up market card + face-down deck)
 
 struct CardTile: View {
     let card: Card
     let selected: Bool
     var body: some View {
-        RoundedRectangle(cornerRadius: 7)
-            .fill(cardColor(card))
-            .frame(height: 42)
-            .overlay { if card == .locomotive { Image(systemName: "sparkles").font(.caption).foregroundStyle(.white) } }
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(.primary.opacity(0.25), lineWidth: 0.5))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(selected ? Color.brand : .clear, lineWidth: 3))
-            .frame(maxWidth: .infinity)
+        EnamelCard(card: card, selected: selected, height: 42).frame(maxWidth: .infinity)
     }
 }
 
 struct DeckTile: View {
     let count: Int
     var body: some View {
-        RoundedRectangle(cornerRadius: 7)
-            .fill(LinearGradient(colors: [Color.gray, Color(white: 0.35)], startPoint: .top, endPoint: .bottom))
-            .frame(height: 42)
+        RoundedRectangle(cornerRadius: 10)
+            .fill(LinearGradient(colors: [Color(hex: 0x3A322A), Color(hex: 0x231D17)],
+                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+            .frame(height: 58)
             .overlay {
-                VStack(spacing: 0) {
-                    Image(systemName: "square.stack.fill").font(.caption2).foregroundStyle(.white)
-                    Text("\(count)").font(.system(size: 8, weight: .bold)).foregroundStyle(.white.opacity(0.85))
+                VStack(spacing: 2) {
+                    Image(systemName: "square.stack.fill").font(.system(size: 15)).foregroundStyle(Palette.brass)
+                    Text("\(count)").font(.sans(9, .bold)).foregroundStyle(Palette.brassLight)
                 }
             }
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(.primary.opacity(0.25), lineWidth: 0.5))
-            .frame(maxWidth: .infinity)
-    }
-}
-
-// MARK: - Theme / colors
-
-extension Color {
-    static let brand = Color(red: 177 / 255, green: 18 / 255, blue: 38 / 255) // #B11226
-}
-
-func cardColor(_ c: Card) -> Color {
-    switch c {
-    case .red: return Color(red: 0.85, green: 0.20, blue: 0.20)
-    case .orange: return Color(red: 0.95, green: 0.55, blue: 0.15)
-    case .yellow: return Color(red: 0.92, green: 0.78, blue: 0.12)
-    case .green: return Color(red: 0.18, green: 0.62, blue: 0.35)
-    case .blue: return Color(red: 0.16, green: 0.45, blue: 0.90)
-    case .purple: return Color(red: 0.55, green: 0.28, blue: 0.75)
-    case .white: return Color(white: 0.95)
-    case .black: return Color(white: 0.20)
-    case .locomotive: return Color(red: 0.45, green: 0.45, blue: 0.50)
-    }
-}
-
-func paintColor(_ p: RoutePaint) -> Color {
-    if p == .gray { return Color.gray }
-    return cardColor(Card(rawValue: p.rawValue) ?? .red)
-}
-
-private let seatColors: [Color] = [
-    Color(red: 0.16, green: 0.45, blue: 0.90), // blue
-    Color(red: 0.95, green: 0.45, blue: 0.10), // orange
-    Color(red: 0.18, green: 0.62, blue: 0.35), // green
-    Color(red: 0.55, green: 0.28, blue: 0.75), // purple
-]
-
-func ownerColor(_ player: Int) -> Color {
-    seatColors[player % seatColors.count]
-}
-
-extension Array {
-    subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(.black.opacity(0.35), lineWidth: 1))
+            .shadow(color: Palette.ink.opacity(0.25), radius: 3, y: 2)
     }
 }

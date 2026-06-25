@@ -34,71 +34,61 @@ struct HowToPlayView: View {
                 }
                 .padding(20)
             }
-            .navigationTitle("How to play")
+            .background(PaperFill())
+            .navigationTitle("How to Play")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.tint(Palette.brass) } }
         }
     }
 
     private var nameField: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label("Your name", systemImage: "person.fill").font(.headline)
+            Label("Your name", systemImage: "person.fill").font(.slab(15, .bold)).foregroundStyle(Palette.ink)
             TextField("Enter your name", text: $playerName)
-                .textFieldStyle(.roundedBorder)
+                .font(.sans(15)).foregroundStyle(Palette.ink)
+                .padding(.horizontal, 12).padding(.vertical, 9)
+                .background(RoundedRectangle(cornerRadius: 9).fill(Palette.parchment)
+                    .overlay(RoundedRectangle(cornerRadius: 9).stroke(Palette.hairline, lineWidth: 1)))
             Text("Shown to your opponent on your turns. Applied to your next move.")
-                .font(.caption2).foregroundStyle(.secondary)
+                .font(.sans(11)).foregroundStyle(Palette.sepiaLight)
         }
-        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color(UIColor.secondarySystemBackground)))
+        .stub(Palette.parchmentDeep, corner: 14, padding: 14)
     }
 
     private var header: some View {
         HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12).fill(Color.brand)
-                Image(systemName: "tram.fill").foregroundStyle(.white).font(.title2)
-            }
-            .frame(width: 52, height: 52)
-            VStack(alignment: .leading) {
-                Text("Ticket to Text").font(.title2.bold())
-                Text("A quick route-claiming game for two.").font(.subheadline).foregroundStyle(.secondary)
+            TrainBadge(color: Palette.carRed, size: 52)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Ticket to Text").font(.slab(22, .bold)).foregroundStyle(Palette.ink)
+                Text("A quick route-claiming game.").font(.sans(13)).foregroundStyle(Palette.sepia)
             }
         }
     }
 
     private func rule(icon: String, title: String, text: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .foregroundStyle(Color.brand)
-                .font(.title3)
-                .frame(width: 28)
+            Image(systemName: icon).foregroundStyle(Palette.brass).font(.title3).frame(width: 28)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.headline)
-                Text(text).font(.subheadline).foregroundStyle(.secondary)
+                Text(title).font(.slab(16, .bold)).foregroundStyle(Palette.ink)
+                Text(text).font(.sans(13)).foregroundStyle(Palette.sepia)
             }
         }
     }
 
     private var legend: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Card colors").font(.headline)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: 3), spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Card colors").font(.slab(15, .bold)).foregroundStyle(Palette.ink)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: 3), spacing: 10) {
                 ForEach(Card.allCases, id: \.self) { c in
-                    HStack(spacing: 6) {
-                        Circle().fill(cardColor(c)).frame(width: 14, height: 14)
-                            .overlay(Circle().stroke(.secondary.opacity(0.4), lineWidth: 0.5))
-                        Text(c == .locomotive ? "Wild" : c.rawValue.capitalized).font(.caption)
+                    HStack(spacing: 7) {
+                        EnamelCard(card: c, height: 22).frame(width: 32)
+                        Text(c == .locomotive ? "Wild" : c.rawValue.capitalized).font(.sans(12)).foregroundStyle(Palette.ink)
                     }
                 }
             }
         }
-        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color(UIColor.secondarySystemBackground)))
+        .stub(Palette.parchmentDeep, corner: 14, padding: 14)
     }
 }
