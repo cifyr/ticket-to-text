@@ -25,6 +25,10 @@ struct GameView: View {
     @State private var page = 0   // 0 = map, 1 = cards
     @State private var focusedOwner: Int?   // tap a player to spotlight their routes
     @State private var centerRouteId: Int?  // log jump: zoom+center this route
+    @State private var pendingDrawCount: Int?     // cards just drawn, awaiting reveal
+    @State private var pendingTicketsFrom: Int?   // ticket count before a ticket draw
+    @State private var revealCards: [Card]?       // private "you drew" reveal
+    @State private var revealTickets: [Ticket]?   // fullscreen ticket reveal
 
     // Resolve a claim log entry back to a route by matching its printed label.
     private func routeIdForLog(_ entry: LogEntry) -> Int? {
@@ -76,11 +80,14 @@ struct GameView: View {
                              onContinue: { withAnimation { recapDismissedFor = state.moveCount } })
             }
         }
+        .overlay { if let cards = revealCards { DrawRevealView(cards: cards) } }
+        .overlay { if let tickets = revealTickets { TicketRevealView(tickets: tickets) } }
         .task(id: state.moveCount) {
             guard pendingRecap else { return }
             try? await Task.sleep(nanoseconds: 2_600_000_000)
             withAnimation { recapDismissedFor = state.moveCount }
         }
+        .onChange(of: state.moveCount) { _, _ in showRevealForMyDraw() }
         .sheet(isPresented: $showHelp) { HowToPlayView() }
         .sheet(isPresented: $showLog) {
             LogSheet(log: state.log, name: name, routeId: routeIdForLog,
@@ -95,6 +102,7 @@ struct GameView: View {
                          ticketsLeft: state.ticketDeck.count, canDraw: effectiveCanAct,
                          onDraw: {
                              showTickets = false
+                             pendingTicketsFrom = state.players[mySeat].tickets.count
                              apply(.drawTickets, caption: "drew \(min(Game.startingTickets, state.ticketDeck.count)) tickets")
                          },
                          onShow: { t in showTickets = false; page = 0; flashTicket(t) })
@@ -419,7 +427,25 @@ struct GameView: View {
     private func commitDraw() {
         guard !draft.isEmpty else { return }
         let picks = draft; draft = []
+        pendingDrawCount = picks.count
         apply(.drawCards(picks), caption: "drew \(picks.count) card\(picks.count == 1 ? "" : "s")")
+    }
+
+    // After my own draw resolves, privately show what I got before the bubble posts.
+    private func showRevealForMyDraw() {
+        guard state.lastActor == mySeat else { pendingDrawCount = nil; pendingTicketsFrom = nil; return }
+        if let k = pendingDrawCount {
+            pendingDrawCount = nil
+            let hand = state.players[mySeat].hand
+            withAnimation(.spring(duration: 0.35)) { revealCards = Array(hand.suffix(k)) }
+            Task { try? await Task.sleep(nanoseconds: 1_600_000_000); withAnimation { revealCards = nil } }
+        }
+        if let from = pendingTicketsFrom {
+            pendingTicketsFrom = nil
+            let t = state.players[mySeat].tickets
+            withAnimation(.spring(duration: 0.35)) { revealTickets = Array(t.suffix(max(0, t.count - from))) }
+            Task { try? await Task.sleep(nanoseconds: 1_700_000_000); withAnimation { revealTickets = nil } }
+        }
     }
 
     private func apply(_ move: Move, caption: String) {
@@ -438,6 +464,64 @@ struct GameView: View {
             return "Your turn"
         }
         return "\(name(state.currentPlayer))'s turn"
+    }
+}
+
+// MARK: - Draw reveals (private to the actor, shown before the bubble posts)
+
+// "You drew" card reveal. Blind cards are shown to you only.
+struct DrawRevealView: View {
+    let cards: [Card]
+    @State private var shown = false
+    var body: some View {
+        ZStack {
+            PaperFill().opacity(0.97)
+            VStack(spacing: 16) {
+                Text("You Drew").font(.slab(13, .bold)).tracking(3).textCase(.uppercase)
+                    .foregroundStyle(Palette.sepia)
+                HStack(spacing: 12) {
+                    ForEach(Array(cards.enumerated()), id: \.offset) { i, card in
+                        EnamelCard(card: card, height: 96).frame(width: 66)
+                            .scaleEffect(shown ? 1 : 0.5).opacity(shown ? 1 : 0)
+                            .animation(.spring(duration: 0.4).delay(Double(i) * 0.12), value: shown)
+                    }
+                }
+                Text("Only you can see these.").font(.sans(11)).foregroundStyle(Palette.sepiaLight)
+            }
+            .padding(24)
+        }
+        .transition(.opacity)
+        .onAppear { shown = true }
+    }
+}
+
+// Fullscreen reveal of freshly drawn destination tickets.
+struct TicketRevealView: View {
+    let tickets: [Ticket]
+    @State private var shown = false
+    var body: some View {
+        ZStack {
+            PaperFill().opacity(0.98)
+            VStack(spacing: 16) {
+                Text("New Destination Tickets").font(.slab(13, .bold)).tracking(2).textCase(.uppercase)
+                    .foregroundStyle(Palette.sepia)
+                ForEach(Array(tickets.enumerated()), id: \.offset) { i, t in
+                    HStack(spacing: 10) {
+                        Text(GameMap.cities[t.cityA].name).font(.slab(16, .bold)).foregroundStyle(Palette.ink)
+                        Image(systemName: "arrow.right").font(.system(size: 12, weight: .bold)).foregroundStyle(Palette.brass)
+                        Text(GameMap.cities[t.cityB].name).font(.slab(16, .bold)).foregroundStyle(Palette.ink)
+                        Spacer(minLength: 8)
+                        PointStamp(points: t.points, size: 40)
+                    }
+                    .stub(Palette.parchmentDeep, corner: 12, padding: 12)
+                    .scaleEffect(shown ? 1 : 0.6).opacity(shown ? 1 : 0)
+                    .animation(.spring(duration: 0.45).delay(Double(i) * 0.15), value: shown)
+                }
+            }
+            .padding(24)
+        }
+        .transition(.opacity)
+        .onAppear { shown = true }
     }
 }
 

@@ -39,7 +39,7 @@ function lobbyViewFor(lobby: Lobby, participantId: string): LobbyView {
     you: youIdx === -1 ? null : youIdx,
     maxPlayers: lobby.maxPlayers,
     members: lobby.members.map((m, i) => ({ name: m.name, ready: m.ready, isHost: i === 0 })),
-    canStart: lobby.members.length >= 2, // host may start whenever 2-4 are aboard
+    canStart: lobby.members.filter((m) => m.ready).length >= 2, // only readied players are in
   };
 }
 
@@ -79,10 +79,16 @@ export async function joinLobby(store: Store, gameId: string, participantId: str
   return lobbyViewFor(lobby, participantId);
 }
 
-export async function setReady(store: Store, gameId: string, participantId: string, ready: boolean): Promise<LobbyView> {
+export async function setReady(store: Store, gameId: string, participantId: string, ready: boolean, name?: string): Promise<LobbyView> {
   const lobby = await loadLobby(store, gameId);
-  const me = lobby.members.find((m) => m.id === participantId);
-  if (!me) throw new BadState("join the lobby first");
+  let me = lobby.members.find((m) => m.id === participantId);
+  if (!me) {
+    // Readying up also joins you: that's the only way into a game now.
+    if (lobby.members.length >= lobby.maxPlayers) throw new BadState("lobby is full");
+    me = { id: participantId, name: name ?? null, ready: false };
+    lobby.members.push(me);
+  }
+  if (name) me.name = name;
   me.ready = ready;
   await store.set(gameId, { kind: "lobby", lobby });
   return lobbyViewFor(lobby, participantId);
@@ -91,10 +97,12 @@ export async function setReady(store: Store, gameId: string, participantId: stri
 export async function startLobby(store: Store, gameId: string, participantId: string): Promise<PlayerView> {
   const lobby = await loadLobby(store, gameId);
   if (participantId !== lobby.hostId) throw new BadState("only the host can start");
-  if (lobby.members.length < 2) throw new BadState("need at least 2 players");
+  // Only readied members make it into the game; everyone else is left behind.
+  const ready = lobby.members.filter((m) => m.ready);
+  if (ready.length < 2) throw new BadState("need at least 2 ready players");
 
-  const game = newGame(lobby.seed, lobby.members.length);
-  lobby.members.forEach((m, i) => { game.playerIDs[i] = m.id; game.playerNames[i] = m.name; });
+  const game = newGame(lobby.seed, ready.length);
+  ready.forEach((m, i) => { game.playerIDs[i] = m.id; game.playerNames[i] = m.name; });
   await store.set(gameId, { kind: "game", game });
   return redactFor(game, assignedIndex(game, participantId));
 }

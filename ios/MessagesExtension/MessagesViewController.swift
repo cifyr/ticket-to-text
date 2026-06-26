@@ -179,12 +179,9 @@ class MessagesViewController: MSMessagesAppViewController {
                 let room = try await self.client.room(gameId: gid, me: self.localID(c))
                 switch room {
                 case .lobby(let lv):
-                    if lv.you == nil {
-                        // Opening an invite joins you on the server — no message sent.
-                        self.lobby = try await self.client.join(gameId: gid, participantId: self.localID(c), name: self.localName())
-                    } else {
-                        self.lobby = lv
-                    }
+                    // No auto-join: you only enter a game by readying up (which
+                    // joins you). Opening an invite just shows you the lobby.
+                    self.lobby = lv
                     self.displayState = nil
                 case .game(let pv):
                     self.lobby = nil
@@ -204,7 +201,16 @@ class MessagesViewController: MSMessagesAppViewController {
                 let view = try await self.client.move(gameId: gid, participantId: self.localID(c),
                                                       move: move, name: self.localName())
                 self.displayState = view.displayState(localID: self.localID(c))
-                self.stage(self.displayState!, url: self.gameIdURL(gid), in: c)
+                if case .claim = move {
+                    self.stage(self.displayState!, url: self.gameIdURL(gid), in: c)
+                } else {
+                    // Draws: let the player privately see what they drew, then post.
+                    self.render(for: c)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.7) { [weak self] in
+                        guard let self, let ds = self.displayState else { return }
+                        self.stage(ds, url: self.gameIdURL(gid), in: c)
+                    }
+                }
             } catch {
                 self.serverError = "\(error)"
                 self.render(for: c)
@@ -239,8 +245,9 @@ class MessagesViewController: MSMessagesAppViewController {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                // Ready is server-only — no message is sent.
-                self.lobby = try await self.client.ready(gameId: gid, participantId: self.localID(c), ready: ready)
+                // Ready is server-only (no message sent) and also joins you.
+                self.lobby = try await self.client.ready(gameId: gid, participantId: self.localID(c),
+                                                         ready: ready, name: self.localName())
                 self.render(for: c)
             } catch { self.serverError = "\(error)"; self.render(for: c) }
         }
@@ -255,6 +262,9 @@ class MessagesViewController: MSMessagesAppViewController {
     }
     private func onSetNameServer(_ name: String, _ c: MSConversation) {
         guard let gid = serverGameId else { return }
+        // Only push a name update if you're already in the lobby; otherwise it
+        // just lives in @AppStorage and rides along when you ready up (join).
+        guard lobby?.you != nil else { return }
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         Task { @MainActor [weak self] in
             guard let self else { return }
