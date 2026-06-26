@@ -80,14 +80,13 @@ class MessagesViewController: MSMessagesAppViewController {
             }
             return
         }
-        guard let url = message.url, let gid = gameId(from: url) else { return }
-        if gid == serverGameId, lobby != nil || displayState != nil { return } // already here
+        // Resolve from the tapped bubble's url, else the current/last game. Move
+        // bubbles deliver url=nil, so this fallback is what lets a tap refresh the
+        // game (apply the opponent's move) instead of doing nothing.
+        guard let gid = (message.url.flatMap { gameId(from: $0) }) ?? serverGameId ?? recallGame() else { return }
         serverGameId = gid
         rememberGame(gid)
-        stopPolling()
-        lobby = nil
-        displayState = nil
-        fetchRoom(gid, conversation) // tapped invite always wins over a stale local room
+        fetchRoom(gid, conversation) // keeps current view visible while it refreshes
     }
 
     override func willResignActive(with conversation: MSConversation) {
@@ -194,10 +193,11 @@ class MessagesViewController: MSMessagesAppViewController {
         // reopening their own invite, where Messages leaves selectedMessage nil).
         // Opening fresh from the app drawer falls through to the start screen.
         let tapped = c.selectedMessage?.url.flatMap { gameId(from: $0) }
-        // Only fall back to the persisted room when NO bubble was tapped (host
-        // reopening from the drawer). A tapped invite whose url didn't resolve must
-        // NOT drop you into your own old lobby — that made tappers phantom hosts.
-        let gid = tapped ?? serverGameId ?? (c.selectedMessage == nil ? recallGame() : nil)
+        // Persisted gameId is an UNCONDITIONAL fallback: move-bubble urls arrive nil
+        // on the recipient (only the first message in a thread reliably carries url),
+        // so the gid we saved on join is what resumes the game. Safe now that real
+        // invites carry a working url and resolve via `tapped` first.
+        let gid = tapped ?? serverGameId ?? recallGame()
         diag("resolve tap=\(tapped ?? "nil") sgid=\(serverGameId ?? "nil") recall=\(recallGame() ?? "nil") -> \(gid ?? "START")")
         if let gid {
             serverGameId = gid
