@@ -87,7 +87,7 @@ struct GameView: View {
         .overlay { if let cards = revealCards { DrawRevealView(cards: cards) } }
         .overlay {
             if let drawn = myPendingTickets {
-                TicketChooserView(drawn: drawn, myRoutes: state.routes.filter { $0.claimedBy == mySeat },
+                TicketChooserView(drawn: drawn, state: state, mySeat: mySeat,
                                   onConfirm: { keep in apply(.keepTickets(keep), caption: "kept \(keep.count) tickets") })
             }
         }
@@ -498,42 +498,66 @@ struct DrawRevealView: View {
 }
 
 // Fullscreen keep/discard chooser for freshly drawn destination tickets.
-// You must keep at least one; the rest return to the bottom of the deck.
+// You must keep at least one; the rest return to the bottom of the deck. Swipe
+// to the board page to study the map before deciding.
 struct TicketChooserView: View {
     let drawn: [Ticket]
-    let myRoutes: [Route]
+    let state: GameState
+    let mySeat: Int
     let onConfirm: ([Int]) -> Void
 
     @State private var keep: Set<Int> = []
     @State private var shown = false
+    @State private var page = 0
+
+    private var myRoutes: [Route] { state.routes.filter { $0.claimedBy == mySeat } }
 
     var body: some View {
         ZStack {
-            PaperFill().opacity(0.99)
-            VStack(spacing: 14) {
-                Text("Keep Destination Tickets").font(.slab(14, .bold)).tracking(1.5).textCase(.uppercase)
-                    .foregroundStyle(Palette.sepia)
-                Text("Tap to keep at least one. The rest go to the bottom of the deck.")
-                    .font(.sans(12)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
-
-                ForEach(Array(drawn.enumerated()), id: \.offset) { i, t in
-                    let on = keep.contains(t.id)
-                    Button { toggle(t.id) } label: { row(t, on: on) }
-                        .buttonStyle(.plain)
-                        .scaleEffect(shown ? 1 : 0.7).opacity(shown ? 1 : 0)
-                        .animation(.spring(duration: 0.4).delay(Double(i) * 0.12), value: shown)
-                }
-
-                Button { onConfirm(Array(keep)) } label: {
-                    Label(keep.isEmpty ? "Keep at least one" : "Keep \(keep.count)", systemImage: "checkmark")
-                }
-                .buttonStyle(BrassButtonStyle()).disabled(keep.isEmpty).opacity(keep.isEmpty ? 0.55 : 1)
-                .padding(.top, 4)
+            PaperFill()
+            TabView(selection: $page) {
+                chooserPage.tag(0)
+                mapPage.tag(1)
             }
-            .padding(24)
+            .tabViewStyle(.page(indexDisplayMode: .always))
         }
         .transition(.opacity)
         .onAppear { shown = true; if let first = drawn.first { keep = [first.id] } } // default-keep one
+    }
+
+    private var chooserPage: some View {
+        VStack(spacing: 14) {
+            Text("Keep Destination Tickets").font(.slab(14, .bold)).tracking(1.5).textCase(.uppercase)
+                .foregroundStyle(Palette.sepia)
+            Text("Keep at least one — the rest go to the bottom of the deck. Swipe to check the map.")
+                .font(.sans(12)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
+
+            ForEach(Array(drawn.enumerated()), id: \.offset) { i, t in
+                let on = keep.contains(t.id)
+                Button { toggle(t.id) } label: { row(t, on: on) }
+                    .buttonStyle(.plain)
+                    .scaleEffect(shown ? 1 : 0.7).opacity(shown ? 1 : 0)
+                    .animation(.spring(duration: 0.4).delay(Double(i) * 0.12), value: shown)
+            }
+
+            Button { onConfirm(Array(keep)) } label: {
+                Label(keep.isEmpty ? "Keep at least one" : "Keep \(keep.count)", systemImage: "checkmark")
+            }
+            .buttonStyle(BrassButtonStyle()).disabled(keep.isEmpty).opacity(keep.isEmpty ? 0.55 : 1)
+            .padding(.top, 4)
+        }
+        .padding(24).padding(.bottom, 20)
+    }
+
+    private var mapPage: some View {
+        VStack(spacing: 10) {
+            Text("Your Board").font(.slab(12, .bold)).tracking(3).textCase(.uppercase)
+                .foregroundStyle(Palette.sepiaLight)
+            BoardArea(state: state, selectedRouteId: nil, highlightTicket: nil,
+                      canAct: false, claimable: { _ in false }, onSelect: { _ in })
+            Text("Zoom in to plan, then swipe back to choose.").font(.sans(11)).foregroundStyle(Palette.sepiaLight)
+        }
+        .padding(16).padding(.bottom, 20)
     }
 
     private func toggle(_ id: Int) {
