@@ -24,6 +24,14 @@ struct GameView: View {
     @State private var confirmedSeat: Int?
     @State private var page = 0   // 0 = map, 1 = cards
     @State private var focusedOwner: Int?   // tap a player to spotlight their routes
+    @State private var centerRouteId: Int?  // log jump: zoom+center this route
+
+    // Resolve a claim log entry back to a route by matching its printed label.
+    private func routeIdForLog(_ entry: LogEntry) -> Int? {
+        guard entry.text.hasPrefix("claimed ") else { return nil }
+        let label = String(entry.text.dropFirst("claimed ".count))
+        return state.routes.first(where: { GameMap.label($0) == label })?.id
+    }
 
     private var mySeat: Int {
         Game.actingIndex(state, participantID: localParticipantID) ?? state.currentPlayer
@@ -74,13 +82,21 @@ struct GameView: View {
             withAnimation { recapDismissedFor = state.moveCount }
         }
         .sheet(isPresented: $showHelp) { HowToPlayView() }
-        .sheet(isPresented: $showLog) { LogSheet(log: state.log, name: name) }
+        .sheet(isPresented: $showLog) {
+            LogSheet(log: state.log, name: name, routeId: routeIdForLog,
+                     onShowRoute: { rid in showLog = false; page = 0; withAnimation(.snappy) { centerRouteId = rid } })
+        }
         .sheet(isPresented: $showResults) {
             FinalScoreView(state: state)
         }
         .sheet(isPresented: $showTickets) {
             TicketsSheet(tickets: state.players[mySeat].tickets,
                          myRoutes: state.routes.filter { $0.claimedBy == mySeat },
+                         ticketsLeft: state.ticketDeck.count, canDraw: effectiveCanAct,
+                         onDraw: {
+                             showTickets = false
+                             apply(.drawTickets, caption: "drew \(min(Game.startingTickets, state.ticketDeck.count)) tickets")
+                         },
                          onShow: { t in showTickets = false; page = 0; flashTicket(t) })
         }
     }
@@ -245,7 +261,8 @@ struct GameView: View {
                   canAct: effectiveCanAct, claimable: { Game.canClaim(state, $0, player: mySeat) },
                   onSelect: { id in withAnimation(.snappy) { selectedRouteId = id } },
                   focusedOwner: focusedOwner,
-                  onBackgroundTap: { withAnimation(.snappy) { focusedOwner = nil } })
+                  onBackgroundTap: { withAnimation(.snappy) { focusedOwner = nil } },
+                  centerRouteId: centerRouteId)
             .overlay(alignment: .bottom) {
                 if let id = selectedRouteId, let route = state.routes.first(where: { $0.id == id }) {
                     RouteDetailCard(
@@ -383,7 +400,9 @@ struct GameView: View {
     private func selectMarket(_ i: Int, card: Card) {
         guard effectiveCanAct else { return }
         if let idx = draft.firstIndex(of: .market(slot: i)) { draft.remove(at: idx); return }
-        if card == .locomotive { draft = [.market(slot: i)]; commitDraw(); return }
+        // A face-up locomotive uses the whole turn, so it stands alone — but it's
+        // only selected here; the player still has to press Draw to submit.
+        if card == .locomotive { draft = [.market(slot: i)]; return }
         guard !draftHasLocomotive, draft.count < Game.maxDraw else { return }
         draft.append(.market(slot: i))
     }
