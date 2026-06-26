@@ -84,6 +84,7 @@ export function newGame(seed = 0xc0ffee, playerCount = 2): GameState {
     lastSummary: null,
     lastClaimedRouteId: null,
     lastPublicDraw: [],
+    pendingTickets: null,
   };
   refillMarket(state);
   return state;
@@ -190,8 +191,24 @@ function applyDraw(state: GameState, picks: DrawPick[]): Card[] {
 function applyDrawTickets(state: GameState): number {
   if (state.ticketDeck.length === 0) throw new IllegalMoveError("no tickets left");
   const drawn = state.ticketDeck.splice(0, STARTING_TICKETS);
-  state.players[state.currentPlayer].tickets.push(...drawn);
+  // Held in a pending choice; the player keeps >= 1 and the turn waits.
+  state.pendingTickets = { player: state.currentPlayer, drawn };
   return drawn.length;
+}
+
+function applyKeepTickets(state: GameState, keep: number[]): number {
+  const pending = state.pendingTickets;
+  if (!pending) throw new IllegalMoveError("no tickets to keep");
+  if (pending.player !== state.currentPlayer) throw new IllegalMoveError("not your tickets");
+  const drawnIds = new Set(pending.drawn.map((t) => t.id));
+  const keepSet = new Set(keep.filter((id) => drawnIds.has(id)));
+  if (keepSet.size < 1) throw new IllegalMoveError("keep at least one ticket");
+  const kept = pending.drawn.filter((t) => keepSet.has(t.id));
+  const returned = pending.drawn.filter((t) => !keepSet.has(t.id));
+  state.players[pending.player].tickets.push(...kept);
+  state.ticketDeck.push(...returned); // returned cards go to the bottom of the deck
+  state.pendingTickets = null;
+  return kept.length;
 }
 
 function endOfTurn(state: GameState): void {
@@ -201,7 +218,7 @@ function endOfTurn(state: GameState): void {
   }
   if (state.finalTurnsLeft === null) {
     if (state.players[state.currentPlayer].trains <= FINAL_TRAIN_THRESHOLD) {
-      state.finalTurnsLeft = state.players.length - 1; // every other player gets one more turn
+      state.finalTurnsLeft = state.players.length; // each player, incl. this one, gets one final turn
     }
   } else {
     state.finalTurnsLeft -= 1;
@@ -221,12 +238,17 @@ function describeDraw(marketCards: Card[], blindCount: number): string {
 
 export function applyMove(state: GameState, move: Move): GameState {
   if (isGameOver(state)) throw new IllegalMoveError("game is already over");
+  // A pending ticket draw must be resolved before anything else.
+  if (state.pendingTickets && move.kind !== "keepTickets") {
+    throw new IllegalMoveError("keep at least one of your drawn tickets first");
+  }
   const next: GameState = structuredClone(state);
   const actor = next.currentPlayer;
 
   let summary: string;
   let claimedId: number | null = null;
   let publicDraw: Card[] = [];
+  let advance = true; // a pending ticket draw keeps the turn open
   switch (move.kind) {
     case "drawCards": {
       const marketCards = move.picks.flatMap((p) => (p.from === "market" ? [next.market[p.slot]] : []));
@@ -244,7 +266,13 @@ export function applyMove(state: GameState, move: Move): GameState {
     }
     case "drawTickets": {
       const n = applyDrawTickets(next);
-      summary = `drew ${n} destination ticket${n === 1 ? "" : "s"}`;
+      summary = `drew ${n} destination tickets`;
+      advance = false; // wait for the keep/discard choice
+      break;
+    }
+    case "keepTickets": {
+      const n = applyKeepTickets(next, move.keep);
+      summary = `kept ${n} destination ticket${n === 1 ? "" : "s"}`;
       break;
     }
   }
@@ -256,7 +284,7 @@ export function applyMove(state: GameState, move: Move): GameState {
   next.log.push({ actor, text: summary });
   next.moveCount += 1;
 
-  endOfTurn(next);
+  if (advance) endOfTurn(next);
   return next;
 }
 
