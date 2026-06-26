@@ -7,7 +7,9 @@ struct HowToPlayView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ZStack {
+                PaperFill()
+                ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     header
                     nameField
@@ -33,10 +35,13 @@ struct HowToPlayView: View {
                     legend
                 }
                 .padding(20)
+                }
+                .scrollContentBackground(.hidden)
             }
-            .background(PaperFill())
             .navigationTitle("How to Play")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Palette.parchment, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.tint(Palette.brass) } }
         }
     }

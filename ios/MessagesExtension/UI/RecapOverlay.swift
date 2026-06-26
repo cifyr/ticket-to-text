@@ -16,9 +16,10 @@ struct RecapOverlay: View {
                 Text("\(actorName) \(state.lastSummary ?? "moved")")
                     .font(.slab(20, .bold)).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
 
-                if let rid = state.lastClaimedRouteId {
-                    BoardView(state: state, selectedRouteId: rid, highlightTicket: nil,
-                              canAct: false, claimable: { _ in false }, onSelect: { _ in })
+                if state.lastClaimedRouteId != nil {
+                    BoardView(state: state, selectedRouteId: nil,
+                              canAct: false, claimable: { _ in false }, onSelect: { _ in },
+                              showNames: false, reportMode: true)
                         .frame(height: 300)
                         .background(
                             ZStack {

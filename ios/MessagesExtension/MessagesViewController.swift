@@ -30,12 +30,13 @@ class MessagesViewController: MSMessagesAppViewController {
         if (UserDefaults.standard.string(forKey: "playerName") ?? "").isEmpty, let n = NameStore.load() {
             UserDefaults.standard.set(n, forKey: "playerName")
         }
-        view.backgroundColor = .systemBackground
+        let parchment = UIColor(red: 0xF2 / 255, green: 0xE8 / 255, blue: 0xD5 / 255, alpha: 1) // matches Palette.parchment
+        view.backgroundColor = parchment
         let host = UIHostingController(rootView: AnyView(Color.clear))
         addChild(host)
         host.view.frame = view.bounds
         host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        host.view.backgroundColor = UIColor.systemBackground
+        host.view.backgroundColor = parchment
         view.addSubview(host.view)
         host.didMove(toParent: self)
         hosting = host

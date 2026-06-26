@@ -3,7 +3,6 @@ import SwiftUI
 // End-of-game scoring breakdown for 2-4 players.
 struct FinalScoreView: View {
     let state: GameState
-    let onNewGame: () -> Void
 
     private func name(_ seat: Int) -> String {
         (state.playerNames[safe: seat] ?? nil) ?? "Player \(seat + 1)"
@@ -26,10 +25,12 @@ struct FinalScoreView: View {
                     }
                 }
 
-                Button(action: onNewGame) { Label("Start a New Game", systemImage: "arrow.clockwise") }
-                    .buttonStyle(BrassButtonStyle())
+                Text("To play again, open the Ticket to Text app in a chat and start a new game.")
+                    .font(.sans(11)).foregroundStyle(Palette.sepiaLight)
+                    .multilineTextAlignment(.center).padding(.top, 4)
             }
             .padding(20)
+            .frame(maxWidth: .infinity)
         }
         .background(PaperFill())
         .onAppear { Feedback.win() }
