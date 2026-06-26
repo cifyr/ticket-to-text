@@ -127,7 +127,7 @@ struct BoardArea: View {
 
     private var mapSurface: some View {
         ZStack {
-            RadialGradient(colors: [Color(hex: 0xEFE3CB), Color(hex: 0xE2D0AE), Color(hex: 0xD6C29C)],
+            RadialGradient(colors: [Color(hex: 0xD7CCB7), Color(hex: 0xCBBB9D), Color(hex: 0xC1AF8C)],
                            center: UnitPoint(x: 0.3, y: 0.15), startRadius: 10, endRadius: 520)
             Paper.grain.resizable(resizingMode: .tile).opacity(0.45).blendMode(.multiply)
         }
@@ -423,10 +423,12 @@ enum BoardGeometry {
                                 fill: ownerColor(owner).opacity(alpha), kind: .owned)
                 } else if claimable {
                     drawBoxCars(in: ctx, from: a, to: b, cars: route.length,
-                                fill: paintColor(route.color).opacity(alpha), kind: .buyable)
+                                fill: paintColor(route.color).opacity(alpha), kind: .buyable,
+                                light: isLightPaint(route.color))
                 } else {
                     drawBoxCars(in: ctx, from: a, to: b, cars: route.length,
-                                fill: paintColor(route.color).opacity(alpha * 0.85), kind: .open)
+                                fill: paintColor(route.color).opacity(alpha * 0.85), kind: .open,
+                                light: isLightPaint(route.color))
                 }
                 if route.id == selected {
                     var halo = Path(); halo.move(to: a); halo.addLine(to: b)
@@ -506,7 +508,7 @@ enum BoardGeometry {
     // The live board's enamel box cars: one skewed car per train length.
     // owned = flat owner fill; buyable = purchase color + gold glow; open = dashed ghost.
     private static func drawBoxCars(in ctx: GraphicsContext, from a: CGPoint, to b: CGPoint,
-                                    cars: Int, fill: Color, kind: CarKind) {
+                                    cars: Int, fill: Color, kind: CarKind, light: Bool = false) {
         let dx = b.x - a.x, dy = b.y - a.y
         let length = max(hypot(dx, dy), 1)
         let angle = atan2(dy, dx)
@@ -518,8 +520,9 @@ enum BoardGeometry {
             let car = carPath(center: center, len: carLen, height: height, angle: angle)
             switch kind {
             case .open:
-                // Can't buy it (yet): dashed outline, no fill.
-                ctx.stroke(car, with: .color(fill), style: StrokeStyle(lineWidth: 1.7, dash: [3, 2]))
+                // Can't buy it (yet): dashed outline, no fill. Light colors (white/
+                // yellow) wash out, so draw them thicker to stay visible.
+                ctx.stroke(car, with: .color(fill), style: StrokeStyle(lineWidth: light ? 3.7 : 1.7, dash: [3, 2]))
             case .buyable:
                 // You can buy it: solid outline + gold glow, no fill.
                 ctx.stroke(car, with: .color(Palette.brassLight.opacity(0.85)), lineWidth: 4.5)

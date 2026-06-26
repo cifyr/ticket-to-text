@@ -361,6 +361,9 @@ func paintColor(_ p: RoutePaint) -> Color {
     return cardColor(Card(rawValue: p.rawValue) ?? .red)
 }
 
+// Light route colors wash out against the parchment, so callers can draw them bolder.
+func isLightPaint(_ p: RoutePaint) -> Bool { p == .white || p == .yellow }
+
 private let seatColors: [Color] = [Palette.carRed, Palette.carBlue, Palette.carGreen, Palette.carYellow]
 
 func ownerColor(_ player: Int) -> Color { seatColors[player % seatColors.count] }

@@ -7,6 +7,7 @@ struct RouteDetailCard: View {
     let hand: [Card]
     let trains: Int
     let affordable: Bool
+    var ownerName: String? = nil
     let onClaim: () -> Void
     let onClose: () -> Void
 
@@ -36,7 +37,7 @@ struct RouteDetailCard: View {
             }
 
             if let owner = route.claimedBy {
-                Label("Claimed by Player \(owner + 1)", systemImage: "checkmark.seal.fill")
+                Label("Claimed by \(ownerName ?? "Player \(owner + 1)")", systemImage: "checkmark.seal.fill")
                     .font(.sans(12, .semibold)).foregroundStyle(ownerColor(owner))
             } else {
                 Text(affordText).font(.sans(11)).foregroundStyle(affordable ? Palette.ink : Palette.sepiaLight)

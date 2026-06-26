@@ -286,6 +286,7 @@ struct GameView: View {
                     RouteDetailCard(
                         route: route, hand: state.players[mySeat].hand, trains: state.players[mySeat].trains,
                         affordable: effectiveCanAct && Game.canClaim(state, route, player: mySeat),
+                        ownerName: route.claimedBy.map { name($0) },
                         onClaim: {
                             apply(.claim(routeId: route.id, color: nil), caption: "claimed \(GameMap.label(route))")
                             withAnimation { selectedRouteId = nil }
