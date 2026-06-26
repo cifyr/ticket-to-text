@@ -5,13 +5,13 @@ import SwiftUI
 struct BoardView: View {
     let state: GameState
     let selectedRouteId: Int?
-    let highlightTicket: Ticket?
     let canAct: Bool
     let claimable: (Route) -> Bool
     let onSelect: (Int) -> Void
     var showNames: Bool = true
-    var showLengthPips: Bool = true
-    var dotsOnSelected: Bool = false
+    var reportMode: Bool = false      // bubble snapshot / recap: subtle unclaimed, no clutter
+    var focusedOwner: Int? = nil      // when set, only this player's routes stay lit
+    var onBackgroundTap: (() -> Void)? = nil
 
     var body: some View {
         GeometryReader { geo in
@@ -19,9 +19,8 @@ struct BoardView: View {
             ZStack {
                 Canvas { ctx, size in
                     BoardGeometry.draw(state, in: ctx, points: pts, size: size,
-                                       selected: selectedRouteId, highlightTicket: highlightTicket,
-                                       showNames: showNames, showLengthPips: showLengthPips,
-                                       dotsOnSelected: dotsOnSelected,
+                                       selected: selectedRouteId, showNames: showNames,
+                                       focusedOwner: focusedOwner, reportMode: reportMode,
                                        highlightClaimable: canAct ? claimable : { _ in false })
                 }
                 Color.clear
@@ -32,16 +31,19 @@ struct BoardView: View {
     }
 
     private func handleTap(_ p: CGPoint, points: [CGPoint]) {
+        if focusedOwner != nil { onBackgroundTap?(); return }   // a tap clears the focus first
         var best: (id: Int, dist: CGFloat)?
         for route in state.routes {
             let d = BoardGeometry.distance(from: p, toSegment: points[route.cityA], points[route.cityB])
             if d < 26, best == nil || d < best!.dist { best = (route.id, d) }
         }
-        if let best { onSelect(best.id) }
+        if let best { onSelect(best.id) } else { onBackgroundTap?() }
     }
 }
 
 // Bigger board the user can pan and zoom, framed like an antique rail map.
+// When showing a destination ticket it switches to a centered fit view that
+// animates the A->B line in.
 struct BoardArea: View {
     let state: GameState
     let selectedRouteId: Int?
@@ -49,25 +51,22 @@ struct BoardArea: View {
     let canAct: Bool
     let claimable: (Route) -> Bool
     let onSelect: (Int) -> Void
+    var focusedOwner: Int? = nil
+    var onBackgroundTap: (() -> Void)? = nil
 
-    @State private var zoomed = true   // default: zoomed in (names visible)
+    @State private var zoomed = false   // default: zoomed out (whole map, names on)
     private let aspect: CGFloat = 0.74
-    // Both levels are already zoomed past fit so the board never shrinks back to the whole-map view.
-    private let baseScale: CGFloat = 1.7
-    private let closeScale: CGFloat = 2.8
+    private let baseScale: CGFloat = 1.12   // zoomed out: the map roughly fits
+    private let closeScale: CGFloat = 3.0   // zoomed in: well past fit for detail
 
     var body: some View {
         GeometryReader { geo in
-            let fitW = min(geo.size.width, geo.size.height / aspect)
-            let scale: CGFloat = zoomed ? closeScale : baseScale
-            let contentW = fitW * scale
-            let contentH = fitW * aspect * scale
-
-            ScrollView([.horizontal, .vertical], showsIndicators: false) {
-                BoardView(state: state, selectedRouteId: selectedRouteId, highlightTicket: highlightTicket,
-                          canAct: canAct, claimable: claimable, onSelect: onSelect, showNames: zoomed)
-                    .frame(width: contentW, height: contentH)
-                    .frame(minWidth: geo.size.width, minHeight: geo.size.height) // center when small
+            Group {
+                if let t = highlightTicket {
+                    DestinationBoard(state: state, ticket: t, aspect: aspect)
+                } else {
+                    scrollMap(geo)
+                }
             }
             .background(mapSurface)
             .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -76,19 +75,35 @@ struct BoardArea: View {
                 .stroke(Palette.brassHair, lineWidth: 1).allowsHitTesting(false))
             .overlay(alignment: .bottomLeading) {
                 Text("RAIL MAP · 1908").font(.slab(10, .bold)).tracking(3)
-                    .foregroundStyle(Palette.sepia.opacity(0.55)).padding(12)
+                    .foregroundStyle(Palette.sepia.opacity(0.55)).padding(12).allowsHitTesting(false)
             }
-            .overlay(alignment: .topTrailing) {
-                Button { withAnimation(.snappy) { zoomed.toggle() } } label: {
-                    Image(systemName: zoomed ? "minus.magnifyingglass" : "plus.magnifyingglass")
-                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(Palette.sepia)
-                        .frame(width: 34, height: 34)
-                        .background(Circle().fill(Palette.parchment).overlay(Circle().stroke(Palette.brassHair, lineWidth: 1)))
-                }
-                .padding(8)
-            }
+            .overlay(alignment: .topTrailing) { if highlightTicket == nil { zoomButton } }
             .shadow(color: Palette.ink.opacity(0.12), radius: 6, y: 3)
         }
+    }
+
+    private func scrollMap(_ geo: GeometryProxy) -> some View {
+        let fitW = min(geo.size.width, geo.size.height / aspect)
+        let scale: CGFloat = zoomed ? closeScale : baseScale
+        let contentW = fitW * scale
+        let contentH = fitW * aspect * scale
+        return ScrollView([.horizontal, .vertical], showsIndicators: false) {
+            BoardView(state: state, selectedRouteId: selectedRouteId,
+                      canAct: canAct, claimable: claimable, onSelect: onSelect,
+                      showNames: true, focusedOwner: focusedOwner, onBackgroundTap: onBackgroundTap)
+                .frame(width: contentW, height: contentH)
+                .frame(minWidth: geo.size.width, minHeight: geo.size.height) // center when small
+        }
+    }
+
+    private var zoomButton: some View {
+        Button { withAnimation(.snappy) { zoomed.toggle() } } label: {
+            Image(systemName: zoomed ? "minus.magnifyingglass" : "plus.magnifyingglass")
+                .font(.system(size: 14, weight: .semibold)).foregroundStyle(Palette.sepia)
+                .frame(width: 34, height: 34)
+                .background(Circle().fill(Palette.parchment).overlay(Circle().stroke(Palette.brassHair, lineWidth: 1)))
+        }
+        .padding(8)
     }
 
     private var mapSurface: some View {
@@ -98,6 +113,64 @@ struct BoardArea: View {
             Paper.grain.resizable(resizingMode: .tile).opacity(0.45).blendMode(.multiply)
         }
         .allowsHitTesting(false)
+    }
+}
+
+// Centered fit-to-frame board with an animated destination line drawn A -> B.
+private struct DestinationBoard: View {
+    let state: GameState
+    let ticket: Ticket
+    let aspect: CGFloat
+
+    var body: some View {
+        GeometryReader { geo in
+            let fitW = min(geo.size.width, geo.size.height / aspect)
+            let fitH = fitW * aspect
+            let frame = CGSize(width: fitW, height: fitH)
+            ZStack {
+                BoardView(state: state, selectedRouteId: nil, canAct: false,
+                          claimable: { _ in false }, onSelect: { _ in }, showNames: true)
+                    .frame(width: fitW, height: fitH)
+                DestinationLine(ticket: ticket, size: frame)
+                    .frame(width: fitW, height: fitH)
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+        }
+    }
+}
+
+private struct DestinationLine: View {
+    let ticket: Ticket
+    let size: CGSize
+    @State private var progress: CGFloat = 0
+
+    var body: some View {
+        let a = BoardGeometry.point(GameMap.cities[ticket.cityA].x, GameMap.cities[ticket.cityA].y, in: size)
+        let b = BoardGeometry.point(GameMap.cities[ticket.cityB].x, GameMap.cities[ticket.cityB].y, in: size)
+        let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+        ZStack {
+            Path { p in p.move(to: a); p.addLine(to: b) }
+                .trim(from: 0, to: progress)
+                .stroke(Palette.routeHot, style: StrokeStyle(lineWidth: 6, lineCap: .round, dash: [9, 7]))
+                .shadow(color: Palette.routeHot.opacity(0.6), radius: 6)
+            ForEach([a, b].indices, id: \.self) { i in
+                Circle().stroke(Palette.routeHot, lineWidth: 3)
+                    .background(Circle().fill(Palette.routeHot.opacity(0.18)))
+                    .frame(width: 26, height: 26)
+                    .position([a, b][i])
+            }
+            pointsBadge.position(mid).opacity(Double(progress))
+        }
+        .onAppear { withAnimation(.easeInOut(duration: 1.0)) { progress = 1 } }
+    }
+
+    private var pointsBadge: some View {
+        Text("\(ticket.points)")
+            .font(.slab(18, .bold)).foregroundStyle(.white)
+            .frame(width: 36, height: 36)
+            .background(Circle().fill(Palette.routeHot))
+            .overlay(Circle().stroke(.white.opacity(0.85), lineWidth: 2))
+            .shadow(color: .black.opacity(0.35), radius: 3, y: 1)
     }
 }
 
@@ -119,129 +192,96 @@ enum BoardGeometry {
                      points: [CGPoint],
                      size: CGSize,
                      selected: Int?,
-                     highlightTicket: Ticket?,
-                     showNames: Bool = true,
-                     showLengthPips: Bool = true,
-                     dotsOnSelected: Bool = false,
+                     showNames: Bool,
+                     focusedOwner: Int?,
+                     reportMode: Bool,
                      highlightClaimable: (Route) -> Bool) {
+        let newest = state.lastClaimedRouteId
+
         for route in state.routes {
             let a = points[route.cityA], b = points[route.cityB]
             let owner = route.claimedBy
             let claimable = owner == nil && highlightClaimable(route)
-            let fill: Color = owner != nil ? ownerColor(owner!)
-                : (claimable ? paintColor(route.color) : paintColor(route.color).opacity(0.4))
 
-            if route.id == selected { // selection / seized-route halo
+            // Per-state styling. Claimed rails are thick and colored by owner
+            // (the most recent claim glows hot); open rails are thin and faint.
+            var color: Color
+            var width: CGFloat
+            var glow: Color?
+            if let owner {
+                let isNew = route.id == newest
+                color = isNew ? Palette.routeHot : ownerColor(owner)
+                width = isNew ? 9 : 8
+                glow = isNew ? Palette.routeHot.opacity(0.55) : nil
+            } else if claimable {
+                color = Palette.brass; width = 6; glow = Palette.brassLight.opacity(0.7)
+            } else {
+                color = Palette.sepia; width = reportMode ? 2.5 : 4; glow = nil
+            }
+
+            // Focus mode: spotlight one player, fade everything else right down.
+            var alpha = 1.0
+            if let f = focusedOwner { alpha = (owner == f) ? 1 : 0.07 }
+            else if owner == nil { alpha = reportMode ? 0.28 : 0.5 }
+
+            if route.id == selected && !reportMode {
                 var halo = Path(); halo.move(to: a); halo.addLine(to: b)
                 ctx.stroke(halo, with: .color(Palette.brass.opacity(0.4)),
                            style: StrokeStyle(lineWidth: 16, lineCap: .round))
             }
 
-            drawTrack(in: ctx, from: a, to: b, cars: route.length, fill: fill,
-                      ghost: owner == nil && !claimable, glow: claimable)
-
-            if route.id == selected && dotsOnSelected { drawDots(in: ctx, from: a, to: b, cars: route.length) }
-
-            if showLengthPips {
-                let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
-                let pip = CGRect(x: mid.x - 8, y: mid.y - 8, width: 16, height: 16)
-                ctx.fill(Path(ellipseIn: pip), with: .radialGradient(
-                    Gradient(colors: [Palette.brassLight, Palette.brass, Palette.brassDark]),
-                    center: CGPoint(x: mid.x - 2, y: mid.y - 2), startRadius: 0, endRadius: 11))
-                ctx.stroke(Path(ellipseIn: pip), with: .color(Color(hex: 0x7A5710)), lineWidth: 1)
-                ctx.draw(Text("\(route.length)").font(.system(size: 10, weight: .bold, design: .serif))
-                    .foregroundStyle(Color(hex: 0x3A2A0C)), at: mid)
-            }
+            strokeCars(in: ctx, from: a, to: b, cars: route.length,
+                       color: color.opacity(alpha), width: width,
+                       glow: glow?.opacity(alpha), bordered: owner != nil || claimable)
         }
 
+        let dotAlpha = focusedOwner == nil ? 1.0 : 0.5
         for (i, p) in points.enumerated() {
-            if dotsOnSelected {
-                // Recap image: subtle city markers so only the seized rail stands out.
-                let r: CGFloat = 2.5
-                ctx.fill(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)),
-                         with: .color(Palette.sepia.opacity(0.55)))
-                continue
-            }
-            let r: CGFloat = 7
+            let r: CGFloat = reportMode ? 5 : 7
             let rect = CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)
             ctx.fill(Path(ellipseIn: rect), with: .radialGradient(
                 Gradient(colors: [Palette.brassLight, Palette.brass, Palette.brassDark]),
                 center: CGPoint(x: p.x - 2, y: p.y - 2), startRadius: 0, endRadius: r + 2))
             ctx.stroke(Path(ellipseIn: rect), with: .color(Color(hex: 0x5E430C)), lineWidth: 1.5)
-            if showNames { drawCityName(GameMap.cities[i].name, at: CGPoint(x: p.x, y: p.y - 17), in: ctx) }
-        }
-
-        if let t = highlightTicket {
-            let a = points[t.cityA], b = points[t.cityB]
-            var line = Path(); line.move(to: a); line.addLine(to: b)
-            ctx.stroke(line, with: .color(Palette.brass),
-                       style: StrokeStyle(lineWidth: 4, lineCap: .round, dash: [3, 7]))
-            for c in [a, b] {
-                ctx.stroke(Path(ellipseIn: CGRect(x: c.x - 12, y: c.y - 12, width: 24, height: 24)),
-                           with: .color(Palette.brass), lineWidth: 3)
+            if showNames {
+                drawCityName(GameMap.cities[i].name, at: CGPoint(x: p.x, y: p.y - 17),
+                             in: ctx, alpha: dotAlpha)
             }
         }
     }
 
     // City label set on a small parchment chip so it stays legible over the map.
-    private static func drawCityName(_ name: String, at center: CGPoint, in ctx: GraphicsContext) {
+    private static func drawCityName(_ name: String, at center: CGPoint, in ctx: GraphicsContext, alpha: Double) {
         let text = Text(name).font(.system(size: 11, weight: .semibold, design: .serif))
-            .foregroundStyle(Palette.ink)
+            .foregroundStyle(Palette.ink.opacity(alpha))
         let resolved = ctx.resolve(text)
         let s = resolved.measure(in: CGSize(width: 200, height: 40))
         let chip = CGRect(x: center.x - s.width / 2 - 5, y: center.y - s.height / 2 - 2,
                           width: s.width + 10, height: s.height + 4)
         let path = Path(roundedRect: chip, cornerRadius: 4)
-        ctx.fill(path, with: .color(Palette.parchment.opacity(0.92)))
-        ctx.stroke(path, with: .color(Palette.brassHair), lineWidth: 1)
+        ctx.fill(path, with: .color(Palette.parchment.opacity(0.92 * alpha)))
+        ctx.stroke(path, with: .color(Palette.brassHair.opacity(alpha)), lineWidth: 1)
         ctx.draw(resolved, at: center)
     }
 
-    // Beads along a seized rail (used in the move-recap image instead of pips).
-    private static func drawDots(in ctx: GraphicsContext, from a: CGPoint, to b: CGPoint, cars: Int) {
-        let dx = b.x - a.x, dy = b.y - a.y
-        for k in 0..<cars {
-            let t = (CGFloat(k) + 0.5) / CGFloat(cars)
-            let c = CGPoint(x: a.x + dx * t, y: a.y + dy * t)
-            let r: CGFloat = 3.5
-            let dot = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
-            ctx.fill(dot, with: .color(Palette.brass))
-            ctx.stroke(dot, with: .color(Color(hex: 0x5E430C)), lineWidth: 1.5)
+    // A rail drawn as one dash per train car so spaces are countable without
+    // any printed number. Claimed/claimable rails get a dark edge for contrast.
+    private static func strokeCars(in ctx: GraphicsContext, from a: CGPoint, to b: CGPoint,
+                                   cars: Int, color: Color, width: CGFloat,
+                                   glow: Color?, bordered: Bool) {
+        let len = max(hypot(b.x - a.x, b.y - a.y), 1)
+        let cell = len / CGFloat(max(cars, 1))
+        let dash = cell * 0.6, gap = cell - dash
+        var p = Path(); p.move(to: a); p.addLine(to: b)
+        let style = StrokeStyle(lineWidth: width, lineCap: .butt, dash: [dash, gap])
+        if let glow {
+            ctx.stroke(p, with: .color(glow), style: StrokeStyle(lineWidth: width + 5, lineCap: .round, dash: [dash, gap]))
         }
-    }
-
-    // Row of skewed enamel train cars along the route.
-    private static func drawTrack(in ctx: GraphicsContext, from a: CGPoint, to b: CGPoint,
-                                  cars: Int, fill: Color, ghost: Bool, glow: Bool) {
-        let dx = b.x - a.x, dy = b.y - a.y
-        let length = max(hypot(dx, dy), 1)
-        let angle = atan2(dy, dx)
-        let carLen = (length / CGFloat(cars)) * 0.74
-        let height: CGFloat = 13
-        for k in 0..<cars {
-            let t = (CGFloat(k) + 0.5) / CGFloat(cars)
-            let center = CGPoint(x: a.x + dx * t, y: a.y + dy * t)
-            let car = carPath(center: center, len: carLen, height: height, angle: angle)
-            if ghost {
-                ctx.stroke(car, with: .color(fill.opacity(0.8)),
-                           style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
-            } else {
-                if glow { ctx.stroke(car, with: .color(Palette.brass.opacity(0.55)), lineWidth: 4) }
-                ctx.fill(car, with: .color(fill))
-                ctx.stroke(car, with: .color(.black.opacity(0.45)), lineWidth: 1)
-            }
+        if bordered {
+            ctx.stroke(p, with: .color(.black.opacity(0.45)),
+                       style: StrokeStyle(lineWidth: width + 1.5, lineCap: .butt, dash: [dash, gap]))
         }
-    }
-
-    private static func carPath(center: CGPoint, len: CGFloat, height: CGFloat, angle: CGFloat) -> Path {
-        let s = height * 0.34
-        var p = Path()
-        p.move(to: CGPoint(x: -len / 2 + s, y: -height / 2))
-        p.addLine(to: CGPoint(x: len / 2 + s, y: -height / 2))
-        p.addLine(to: CGPoint(x: len / 2 - s, y: height / 2))
-        p.addLine(to: CGPoint(x: -len / 2 - s, y: height / 2))
-        p.closeSubpath()
-        return p.applying(CGAffineTransform(translationX: center.x, y: center.y).rotated(by: angle))
+        ctx.stroke(p, with: .color(color), style: style)
     }
 
     static func distance(from p: CGPoint, toSegment a: CGPoint, _ b: CGPoint) -> CGFloat {
