@@ -14,21 +14,8 @@ class MessagesViewController: MSMessagesAppViewController {
     private var serverError: String?
     private var loading = false
     private var lobby: LobbyView?
-    private var session: MSSession?   // shared so invite -> game is one bubble
     private var pollTask: Task<Void, Never>?
 
-    // TEMP on-screen diagnostics (visible in TestFlight) to trace the join flow.
-    private var diagLog: [String] = []
-    private func diag(_ s: String) {
-        diagLog.append(s)
-        if diagLog.count > 6 { diagLog.removeFirst(diagLog.count - 6) }
-    }
-
-    private func currentSession(_ c: MSConversation) -> MSSession {
-        let s = c.selectedMessage?.session ?? session ?? MSSession()
-        session = s
-        return s
-    }
     private lazy var client = GameClient(baseURL: AppConfig.serverBaseURL, bypassToken: AppConfig.bypassToken)
 
     override func viewDidLoad() {
@@ -51,8 +38,6 @@ class MessagesViewController: MSMessagesAppViewController {
 
     override func willBecomeActive(with conversation: MSConversation) {
         super.willBecomeActive(with: conversation)
-        let sel = conversation.selectedMessage
-        diag("WBA sel=\(sel != nil) url=\(sel?.url?.absoluteString ?? "nil") remote=\(conversation.remoteParticipantIdentifiers.count)")
         if AppConfig.useServer {
             loadServer(conversation)
         } else {
@@ -67,12 +52,11 @@ class MessagesViewController: MSMessagesAppViewController {
     }
 
     // Fires when the user taps a bubble while the extension is ALREADY active
-    // (willBecomeActive only fires on a cold activation). Without this, a player
-    // sitting in their own lobby who taps someone else's invite never switches to
-    // it — they stay host of their own room and the two can't join each other.
+    // (willBecomeActive only fires on a cold activation). Each bubble carries its
+    // own gameId, so tapping any game's bubble switches to exactly that game —
+    // this is what lets multiple games coexist in one chat.
     override func didSelect(_ message: MSMessage, conversation: MSConversation) {
         super.didSelect(message, conversation: conversation)
-        diag("didSelect url=\(message.url?.absoluteString ?? "nil")")
         guard AppConfig.useServer else {
             if let url = message.url, let state = Serialize.decode(from: url) {
                 displayState = state
@@ -80,12 +64,8 @@ class MessagesViewController: MSMessagesAppViewController {
             }
             return
         }
-        // Resolve from the tapped bubble's url, else the current/last game. Move
-        // bubbles deliver url=nil, so this fallback is what lets a tap refresh the
-        // game (apply the opponent's move) instead of doing nothing.
-        guard let gid = (message.url.flatMap { gameId(from: $0) }) ?? serverGameId ?? recallGame() else { return }
+        guard let gid = message.url.flatMap({ gameId(from: $0) }) else { return }
         serverGameId = gid
-        rememberGame(gid)
         fetchRoom(gid, conversation) // keeps current view visible while it refreshes
     }
 
@@ -149,11 +129,6 @@ class MessagesViewController: MSMessagesAppViewController {
         return n == 0 ? 2 : max(2, min(4, n))
     }
 
-    // Remember the room so the host can reopen their own invite even when
-    // Messages doesn't hand us back a selectedMessage on tap.
-    private func rememberGame(_ gid: String) { UserDefaults.standard.set(gid, forKey: "lastGameId") }
-    private func recallGame() -> String? { UserDefaults.standard.string(forKey: "lastGameId") }
-
     // MARK: Offline (local) mode
 
     private func decodedLocal(from c: MSConversation) -> GameState {
@@ -187,21 +162,14 @@ class MessagesViewController: MSMessagesAppViewController {
 
     private func loadServer(_ c: MSConversation) {
         serverError = nil
-        // Resolve the game id in priority order: the tapped invite/game bubble,
-        // the room we already hold this session, or — only when the user tapped
-        // one of our bubbles — the last room we persisted (covers the host
-        // reopening their own invite, where Messages leaves selectedMessage nil).
-        // Opening fresh from the app drawer falls through to the start screen.
+        // Each bubble carries its own gameId, so tapping one opens exactly that
+        // game (multiple games can live in one chat). Opening from the app drawer
+        // has no tapped bubble -> fall to the game we already hold this activation,
+        // else the start screen (the drawer is the "new game" entry point).
         let tapped = c.selectedMessage?.url.flatMap { gameId(from: $0) }
-        // Persisted gameId is an UNCONDITIONAL fallback: move-bubble urls arrive nil
-        // on the recipient (only the first message in a thread reliably carries url),
-        // so the gid we saved on join is what resumes the game. Safe now that real
-        // invites carry a working url and resolve via `tapped` first.
-        let gid = tapped ?? serverGameId ?? recallGame()
-        diag("resolve tap=\(tapped ?? "nil") sgid=\(serverGameId ?? "nil") recall=\(recallGame() ?? "nil") -> \(gid ?? "START")")
+        let gid = tapped ?? serverGameId
         if let gid {
             serverGameId = gid
-            rememberGame(gid)
             fetchRoom(gid, c) // keeps any current lobby/game visible while it refreshes
         } else {
             lobby = nil; displayState = nil; serverGameId = nil
@@ -220,13 +188,11 @@ class MessagesViewController: MSMessagesAppViewController {
                     // joins you). Opening an invite just shows you the lobby.
                     self.lobby = lv
                     self.displayState = nil
-                    self.diag("room \(gid) = lobby you=\(lv.you.map(String.init) ?? "nil") mem=\(lv.members.count) me=\(self.localID(c).prefix(6))")
                 case .game(let pv):
                     self.lobby = nil
                     self.displayState = pv.displayState(localID: self.localID(c))
-                    self.diag("room \(gid) = game")
                 }
-            } catch { self.serverError = "\(error)"; self.diag("room \(gid) ERR \(error)") }
+            } catch { self.serverError = "\(error)" }
             self.loading = false
             self.render(for: c)
             if self.lobby != nil { self.startLobbyPolling(gid, c) } else { self.stopPolling() }
@@ -269,7 +235,6 @@ class MessagesViewController: MSMessagesAppViewController {
                 let resp = try await self.client.createLobby(hostId: self.localID(c), hostName: self.localName(),
                                                              maxPlayers: 4)
                 self.serverGameId = resp.gameId
-                self.rememberGame(resp.gameId)
                 self.lobby = resp.view
                 self.displayState = nil
                 self.serverError = nil
@@ -391,8 +356,10 @@ class MessagesViewController: MSMessagesAppViewController {
     // MARK: Messaging
 
     private func stage(_ state: GameState, url: URL, in c: MSConversation) {
-        let s = currentSession(c)
-        let message = MSMessage(session: s)
+        // Fresh session per bubble (NOT a reused one): updating an existing session
+        // makes MSMessage.url arrive nil on the recipient. A new session each time
+        // posts an independent bubble that reliably carries the gameId in its url.
+        let message = MSMessage(session: MSSession())
         let layout = MSMessageTemplateLayout()
         let (caption, sub) = captionPair(state)
         layout.image = BoardSnapshot.render(state, caption: sub)
@@ -406,8 +373,7 @@ class MessagesViewController: MSMessagesAppViewController {
     }
 
     private func stageLobby(_ gid: String, _ lobby: LobbyView, in c: MSConversation) {
-        let s = currentSession(c)
-        let message = MSMessage(session: s)
+        let message = MSMessage(session: MSSession())
         let layout = MSMessageTemplateLayout()
         let ready = lobby.members.filter { $0.ready }.count
         layout.image = LobbySnapshot.render(joined: lobby.members.count, max: lobby.maxPlayers, ready: ready)
@@ -451,27 +417,12 @@ class MessagesViewController: MSMessagesAppViewController {
     // MARK: Hosting
 
     private func setRoot(_ view: AnyView) {
-        // TEMP: diagnostic banner shown in ALL builds (incl. TestFlight) to trace joins.
-        let withDiag = AnyView(
-            VStack(spacing: 0) {
-                if !diagLog.isEmpty {
-                    Text(diagLog.joined(separator: "\n"))
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(4)
-                        .background(Color.red.opacity(0.9))
-                        .textSelection(.enabled)
-                }
-                view
-            }
-        )
         #if DEBUG
-        hosting?.rootView = AnyView(withDiag.overlay(
+        hosting?.rootView = AnyView(view.overlay(
             DebugIdentityBar(label: DebugIdentity.label, onSwitch: { [weak self] in self?.switchIdentity() })
         ))
         #else
-        hosting?.rootView = withDiag
+        hosting?.rootView = view
         #endif
     }
 }

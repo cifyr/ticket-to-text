@@ -16,6 +16,7 @@ struct BoardView: View {
     var nameCities: Set<Int>? = nil   // when set, only label these cities (ticket path)
     var style: BoardStyle = .cars
     var focusedOwner: Int? = nil      // when set, only this player's routes stay lit
+    var highlightTickets: [Ticket] = []   // red A->B lines for tickets being chosen
     var onBackgroundTap: (() -> Void)? = nil
 
     var body: some View {
@@ -27,6 +28,9 @@ struct BoardView: View {
                                        selected: selectedRouteId, showNames: showNames,
                                        nameCities: nameCities, style: style, focusedOwner: focusedOwner,
                                        highlightClaimable: canAct ? claimable : { _ in false })
+                    for t in highlightTickets {
+                        BoardGeometry.drawTicketLine(in: ctx, from: pts[t.cityA], to: pts[t.cityB])
+                    }
                 }
                 Color.clear
                     .contentShape(Rectangle())
@@ -57,6 +61,7 @@ struct BoardArea: View {
     let claimable: (Route) -> Bool
     let onSelect: (Int) -> Void
     var focusedOwner: Int? = nil
+    var highlightTickets: [Ticket] = []   // red A->B lines for tickets being chosen
     var onBackgroundTap: (() -> Void)? = nil
     var centerRouteId: Int? = nil     // parent asks to zoom in + center on this route
     var onClearCenter: () -> Void = {}
@@ -101,7 +106,8 @@ struct BoardArea: View {
             BoardView(state: state, selectedRouteId: selectedRouteId,
                       canAct: canAct, claimable: claimable, onSelect: onSelect,
                       showNames: zoomed, style: zoomed ? .cars : .thin,
-                      focusedOwner: focusedOwner, onBackgroundTap: onBackgroundTap)
+                      focusedOwner: focusedOwner, highlightTickets: highlightTickets,
+                      onBackgroundTap: onBackgroundTap)
                 .frame(width: contentW, height: contentH)
                 .frame(minWidth: geo.size.width, minHeight: geo.size.height) // center when small
         }
@@ -306,6 +312,22 @@ enum BoardGeometry {
         ctx.fill(path, with: .color(Palette.parchment.opacity(0.92 * alpha)))
         ctx.stroke(path, with: .color(Palette.brassHair.opacity(alpha)), lineWidth: 1)
         ctx.draw(resolved, at: center)
+    }
+
+    // Red dashed A->B line for a destination ticket being chosen, with endpoint
+    // rings, so the player sees where each kept ticket goes on the zoomed-out map.
+    static func drawTicketLine(in ctx: GraphicsContext, from a: CGPoint, to b: CGPoint) {
+        var p = Path(); p.move(to: a); p.addLine(to: b)
+        ctx.stroke(p, with: .color(Palette.routeHot.opacity(0.5)),
+                   style: StrokeStyle(lineWidth: 7, lineCap: .round))   // soft glow underlay
+        ctx.stroke(p, with: .color(Palette.routeHot),
+                   style: StrokeStyle(lineWidth: 3.5, lineCap: .round, dash: [9, 7]))
+        for pt in [a, b] {
+            let r: CGFloat = 7
+            let rect = CGRect(x: pt.x - r, y: pt.y - r, width: r * 2, height: r * 2)
+            ctx.fill(Path(ellipseIn: rect), with: .color(Palette.routeHot.opacity(0.22)))
+            ctx.stroke(Path(ellipseIn: rect), with: .color(Palette.routeHot), lineWidth: 2.5)
+        }
     }
 
     // Thin line per route (zoomed-out & snapshot). Dashed per car so spaces are

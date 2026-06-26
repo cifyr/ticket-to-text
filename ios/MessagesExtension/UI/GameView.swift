@@ -554,8 +554,10 @@ struct TicketChooserView: View {
             Text("Your Board").font(.slab(12, .bold)).tracking(3).textCase(.uppercase)
                 .foregroundStyle(Palette.sepiaLight)
             BoardArea(state: state, selectedRouteId: nil, highlightTicket: nil,
-                      canAct: false, claimable: { _ in false }, onSelect: { _ in })
-            Text("Zoom in to plan, then swipe back to choose.").font(.sans(11)).foregroundStyle(Palette.sepiaLight)
+                      canAct: false, claimable: { _ in false }, onSelect: { _ in },
+                      highlightTickets: drawn.filter { keep.contains($0.id) })
+            Text("Red lines show the tickets you're keeping. Zoom in to plan, then swipe back to choose.")
+                .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
         }
         .padding(16).padding(.bottom, 20)
     }
