@@ -82,6 +82,8 @@ struct GameClient {
             return d
         case .drawTickets:
             return ["kind": "drawTickets"]
+        case .keepTickets(let keep):
+            return ["kind": "keepTickets", "keep": keep]
         }
     }
 

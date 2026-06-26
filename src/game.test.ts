@@ -116,32 +116,55 @@ test("gray route can be claimed with any single color", () => {
   assert.deepEqual(next.players[0].hand, ["red"], "spent the 3 blue (fewest locomotives)");
 });
 
-test("draw tickets adds tickets and passes the turn", () => {
+test("draw tickets: pending choice, keep >= 1, rest go to bottom, then turn passes", () => {
   const s = make({
     routes: [openRoute()],
-    ticketDeck: [{ id: 0, cityA: 0, cityB: 1, points: 5 }, { id: 1, cityA: 2, cityB: 3, points: 7 }],
+    ticketDeck: [
+      { id: 0, cityA: 0, cityB: 1, points: 5 },
+      { id: 1, cityA: 2, cityB: 3, points: 7 },
+      { id: 2, cityA: 0, cityB: 3, points: 9 },
+      { id: 9, cityA: 1, cityB: 2, points: 4 }, // stays in the deck (4th)
+    ],
     deck: ["red"],
   });
-  const next = applyMove(s, { kind: "drawTickets" });
-  assert.equal(next.players[0].tickets.length, 2);
-  assert.equal(next.ticketDeck.length, 0);
-  assert.equal(next.currentPlayer, 1);
+  const drew = applyMove(s, { kind: "drawTickets" });
+  assert.equal(drew.pendingTickets?.drawn.length, 3, "drew the top 3");
+  assert.equal(drew.players[0].tickets.length, 0, "nothing kept yet");
+  assert.equal(drew.currentPlayer, 0, "turn doesn't pass until you choose");
+
+  // Must keep at least one.
+  assert.throws(() => applyMove(drew, { kind: "keepTickets", keep: [] }), /at least one/);
+  // Other moves are blocked while a draw is pending.
+  assert.throws(() => applyMove(drew, { kind: "drawCards", picks: [{ from: "blind" }] }), /keep at least one/);
+
+  const kept = applyMove(drew, { kind: "keepTickets", keep: [0, 2] });
+  assert.equal(kept.players[0].tickets.length, 2, "kept two");
+  assert.deepEqual(kept.players[0].tickets.map((t) => t.id).sort(), [0, 2]);
+  assert.equal(kept.pendingTickets, null);
+  assert.equal(kept.currentPlayer, 1, "now the turn passes");
+  // The unkept ticket (id 1) went to the bottom, behind the leftover id 9.
+  assert.deepEqual(kept.ticketDeck.map((t) => t.id), [9, 1]);
 });
 
 test("running low on trains triggers a final round, then the game ends", () => {
   const s = make({
     routes: [openRoute({ id: 0, length: 3, color: "red" }), openRoute({ id: 1, color: "blue" })],
     players: [P({ hand: ["red", "red", "red"], trains: 4 }), P()],
-    deck: ["white", "green"],
+    deck: Array.from({ length: 12 }, () => "white") as Card[],
+    market: ["red", "blue", "green", "yellow", "orange"],
   });
   const afterClaim = applyMove(s, { kind: "claim", routeId: 0 });
   assert.equal(afterClaim.players[0].trains, 1);
-  assert.equal(afterClaim.finalTurnsLeft, 1, "opponent gets one last turn");
+  assert.equal(afterClaim.finalTurnsLeft, 2, "each player incl. the triggerer gets one final turn");
   assert.equal(afterClaim.over, false);
 
   const afterOpponent = applyMove(afterClaim, { kind: "drawCards", picks: [{ from: "blind" }] });
-  assert.equal(afterOpponent.over, true);
-  assert.equal(isGameOver(afterOpponent), true);
+  assert.equal(afterOpponent.over, false, "the triggering player still gets their final turn");
+  assert.equal(afterOpponent.currentPlayer, 0);
+
+  const afterFinal = applyMove(afterOpponent, { kind: "drawCards", picks: [{ from: "blind" }] });
+  assert.equal(afterFinal.over, true);
+  assert.equal(isGameOver(afterFinal), true);
 });
 
 test("ticket scoring: + when connected, - when not", () => {
@@ -310,13 +333,13 @@ test("4-player final round gives each remaining player one last turn", () => {
     playerNames: [null, null, null, null],
   });
   let g = applyMove(s, { kind: "claim", routeId: 0 }); // P0 drops to 1 train
-  assert.equal(g.finalTurnsLeft, 3);
+  assert.equal(g.finalTurnsLeft, 4); // each player incl. P0 gets one final turn
   assert.equal(g.over, false);
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     g = applyMove(g, { kind: "drawCards", picks: [{ from: "blind" }] });
     assert.equal(g.over, false);
   }
-  g = applyMove(g, { kind: "drawCards", picks: [{ from: "blind" }] }); // 3rd remaining player
+  g = applyMove(g, { kind: "drawCards", picks: [{ from: "blind" }] }); // P0's final turn
   assert.equal(g.over, true);
 });
 

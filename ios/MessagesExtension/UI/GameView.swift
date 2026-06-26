@@ -26,9 +26,13 @@ struct GameView: View {
     @State private var focusedOwner: Int?   // tap a player to spotlight their routes
     @State private var centerRouteId: Int?  // log jump: zoom+center this route
     @State private var pendingDrawCount: Int?     // cards just drawn, awaiting reveal
-    @State private var pendingTicketsFrom: Int?   // ticket count before a ticket draw
     @State private var revealCards: [Card]?       // private "you drew" reveal
-    @State private var revealTickets: [Ticket]?   // fullscreen ticket reveal
+
+    // Destination tickets I drew this turn that still need a keep/discard choice.
+    private var myPendingTickets: [Ticket]? {
+        guard let p = state.pendingTickets, p.player == mySeat else { return nil }
+        return p.drawn
+    }
 
     // Resolve a claim log entry back to a route by matching its printed label.
     private func routeIdForLog(_ entry: LogEntry) -> Int? {
@@ -81,7 +85,12 @@ struct GameView: View {
             }
         }
         .overlay { if let cards = revealCards { DrawRevealView(cards: cards) } }
-        .overlay { if let tickets = revealTickets { TicketRevealView(tickets: tickets) } }
+        .overlay {
+            if let drawn = myPendingTickets {
+                TicketChooserView(drawn: drawn, myRoutes: state.routes.filter { $0.claimedBy == mySeat },
+                                  onConfirm: { keep in apply(.keepTickets(keep), caption: "kept \(keep.count) tickets") })
+            }
+        }
         .task(id: state.moveCount) {
             guard pendingRecap else { return }
             try? await Task.sleep(nanoseconds: 2_600_000_000)
@@ -102,8 +111,7 @@ struct GameView: View {
                          ticketsLeft: state.ticketDeck.count, canDraw: effectiveCanAct,
                          onDraw: {
                              showTickets = false
-                             pendingTicketsFrom = state.players[mySeat].tickets.count
-                             apply(.drawTickets, caption: "drew \(min(Game.startingTickets, state.ticketDeck.count)) tickets")
+                             apply(.drawTickets, caption: "drew destination tickets")
                          },
                          onShow: { t in showTickets = false; page = 0; flashTicket(t) })
         }
@@ -432,21 +440,13 @@ struct GameView: View {
         apply(.drawCards(picks), caption: "drew \(picks.count) card\(picks.count == 1 ? "" : "s")")
     }
 
-    // After my own draw resolves, privately show what I got before the bubble posts.
+    // After my own card draw resolves, privately show what I got before the bubble posts.
     private func showRevealForMyDraw() {
-        guard state.lastActor == mySeat else { pendingDrawCount = nil; pendingTicketsFrom = nil; return }
-        if let k = pendingDrawCount {
-            pendingDrawCount = nil
-            let hand = state.players[mySeat].hand
-            withAnimation(.spring(duration: 0.35)) { revealCards = Array(hand.suffix(k)) }
-            Task { try? await Task.sleep(nanoseconds: 1_600_000_000); withAnimation { revealCards = nil } }
-        }
-        if let from = pendingTicketsFrom {
-            pendingTicketsFrom = nil
-            let t = state.players[mySeat].tickets
-            withAnimation(.spring(duration: 0.35)) { revealTickets = Array(t.suffix(max(0, t.count - from))) }
-            Task { try? await Task.sleep(nanoseconds: 1_700_000_000); withAnimation { revealTickets = nil } }
-        }
+        guard state.lastActor == mySeat, let k = pendingDrawCount else { pendingDrawCount = nil; return }
+        pendingDrawCount = nil
+        let hand = state.players[mySeat].hand
+        withAnimation(.spring(duration: 0.35)) { revealCards = Array(hand.suffix(k)) }
+        Task { try? await Task.sleep(nanoseconds: 1_600_000_000); withAnimation { revealCards = nil } }
     }
 
     private func apply(_ move: Move, caption: String) {
@@ -497,33 +497,69 @@ struct DrawRevealView: View {
     }
 }
 
-// Fullscreen reveal of freshly drawn destination tickets.
-struct TicketRevealView: View {
-    let tickets: [Ticket]
+// Fullscreen keep/discard chooser for freshly drawn destination tickets.
+// You must keep at least one; the rest return to the bottom of the deck.
+struct TicketChooserView: View {
+    let drawn: [Ticket]
+    let myRoutes: [Route]
+    let onConfirm: ([Int]) -> Void
+
+    @State private var keep: Set<Int> = []
     @State private var shown = false
+
     var body: some View {
         ZStack {
-            PaperFill().opacity(0.98)
-            VStack(spacing: 16) {
-                Text("New Destination Tickets").font(.slab(13, .bold)).tracking(2).textCase(.uppercase)
+            PaperFill().opacity(0.99)
+            VStack(spacing: 14) {
+                Text("Keep Destination Tickets").font(.slab(14, .bold)).tracking(1.5).textCase(.uppercase)
                     .foregroundStyle(Palette.sepia)
-                ForEach(Array(tickets.enumerated()), id: \.offset) { i, t in
-                    HStack(spacing: 10) {
-                        Text(GameMap.cities[t.cityA].name).font(.slab(16, .bold)).foregroundStyle(Palette.ink)
-                        Image(systemName: "arrow.right").font(.system(size: 12, weight: .bold)).foregroundStyle(Palette.brass)
-                        Text(GameMap.cities[t.cityB].name).font(.slab(16, .bold)).foregroundStyle(Palette.ink)
-                        Spacer(minLength: 8)
-                        PointStamp(points: t.points, size: 40)
-                    }
-                    .stub(Palette.parchmentDeep, corner: 12, padding: 12)
-                    .scaleEffect(shown ? 1 : 0.6).opacity(shown ? 1 : 0)
-                    .animation(.spring(duration: 0.45).delay(Double(i) * 0.15), value: shown)
+                Text("Tap to keep at least one. The rest go to the bottom of the deck.")
+                    .font(.sans(12)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
+
+                ForEach(Array(drawn.enumerated()), id: \.offset) { i, t in
+                    let on = keep.contains(t.id)
+                    Button { toggle(t.id) } label: { row(t, on: on) }
+                        .buttonStyle(.plain)
+                        .scaleEffect(shown ? 1 : 0.7).opacity(shown ? 1 : 0)
+                        .animation(.spring(duration: 0.4).delay(Double(i) * 0.12), value: shown)
                 }
+
+                Button { onConfirm(Array(keep)) } label: {
+                    Label(keep.isEmpty ? "Keep at least one" : "Keep \(keep.count)", systemImage: "checkmark")
+                }
+                .buttonStyle(BrassButtonStyle()).disabled(keep.isEmpty).opacity(keep.isEmpty ? 0.55 : 1)
+                .padding(.top, 4)
             }
             .padding(24)
         }
         .transition(.opacity)
-        .onAppear { shown = true }
+        .onAppear { shown = true; if let first = drawn.first { keep = [first.id] } } // default-keep one
+    }
+
+    private func toggle(_ id: Int) {
+        if keep.contains(id) { keep.remove(id) } else { keep.insert(id) }
+    }
+
+    private func row(_ t: Ticket, on: Bool) -> some View {
+        let done = Scoring.connected(myRoutes, from: t.cityA, to: t.cityB)
+        return HStack(spacing: 10) {
+            Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 20)).foregroundStyle(on ? Palette.success : Palette.sepiaLight)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Text(GameMap.cities[t.cityA].name).font(.slab(15, .bold)).foregroundStyle(Palette.ink)
+                    Image(systemName: "arrow.right").font(.system(size: 11, weight: .bold)).foregroundStyle(Palette.brass)
+                    Text(GameMap.cities[t.cityB].name).font(.slab(15, .bold)).foregroundStyle(Palette.ink)
+                }
+                if done {
+                    Text("Already connected").font(.sans(10, .bold)).textCase(.uppercase).foregroundStyle(Palette.success)
+                }
+            }
+            Spacer(minLength: 8)
+            PointStamp(points: t.points, size: 40)
+        }
+        .stub(on ? Color(hex: 0xD7E8D5) : Palette.parchmentDeep, corner: 12, padding: 12,
+              stroke: on ? Palette.success.opacity(0.55) : Palette.hairline)
     }
 }
 

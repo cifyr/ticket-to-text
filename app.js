@@ -5640,11 +5640,10 @@ var LONGEST_ROUTE_BONUS = 10;
 function finalScores(state) {
   const longest = state.players.map((_, p) => longestRoute(state, p));
   const maxLongest = Math.max(...longest);
-  const uniqueMax = longest.filter((l) => l === maxLongest).length === 1;
   return state.players.map((_, p) => {
     const routeScore = state.players[p].score;
     const tScore = ticketScore(state, p);
-    const longestBonus = uniqueMax && longest[p] === maxLongest ? LONGEST_ROUTE_BONUS : 0;
+    const longestBonus = maxLongest > 0 && longest[p] === maxLongest ? LONGEST_ROUTE_BONUS : 0;
     return {
       routeScore,
       ticketScore: tScore,
@@ -5737,7 +5736,8 @@ function newGame(seed = 12648430, playerCount = 2) {
     lastActor: null,
     lastSummary: null,
     lastClaimedRouteId: null,
-    lastPublicDraw: []
+    lastPublicDraw: [],
+    pendingTickets: null
   };
   refillMarket(state);
   return state;
@@ -5837,8 +5837,22 @@ function applyDraw(state, picks) {
 function applyDrawTickets(state) {
   if (state.ticketDeck.length === 0) throw new IllegalMoveError("no tickets left");
   const drawn = state.ticketDeck.splice(0, STARTING_TICKETS);
-  state.players[state.currentPlayer].tickets.push(...drawn);
+  state.pendingTickets = { player: state.currentPlayer, drawn };
   return drawn.length;
+}
+function applyKeepTickets(state, keep) {
+  const pending = state.pendingTickets;
+  if (!pending) throw new IllegalMoveError("no tickets to keep");
+  if (pending.player !== state.currentPlayer) throw new IllegalMoveError("not your tickets");
+  const drawnIds = new Set(pending.drawn.map((t) => t.id));
+  const keepSet = new Set(keep.filter((id) => drawnIds.has(id)));
+  if (keepSet.size < 1) throw new IllegalMoveError("keep at least one ticket");
+  const kept = pending.drawn.filter((t) => keepSet.has(t.id));
+  const returned = pending.drawn.filter((t) => !keepSet.has(t.id));
+  state.players[pending.player].tickets.push(...kept);
+  state.ticketDeck.push(...returned);
+  state.pendingTickets = null;
+  return kept.length;
 }
 function endOfTurn(state) {
   if (state.routes.every((r) => r.claimedBy !== null)) {
@@ -5847,7 +5861,7 @@ function endOfTurn(state) {
   }
   if (state.finalTurnsLeft === null) {
     if (state.players[state.currentPlayer].trains <= FINAL_TRAIN_THRESHOLD) {
-      state.finalTurnsLeft = state.players.length - 1;
+      state.finalTurnsLeft = state.players.length;
     }
   } else {
     state.finalTurnsLeft -= 1;
@@ -5863,11 +5877,15 @@ function describeDraw(marketCards, blindCount) {
 }
 function applyMove(state, move) {
   if (isGameOver(state)) throw new IllegalMoveError("game is already over");
+  if (state.pendingTickets && move.kind !== "keepTickets") {
+    throw new IllegalMoveError("keep at least one of your drawn tickets first");
+  }
   const next = structuredClone(state);
   const actor = next.currentPlayer;
   let summary;
   let claimedId = null;
   let publicDraw = [];
+  let advance = true;
   switch (move.kind) {
     case "drawCards": {
       const marketCards = move.picks.flatMap((p) => p.from === "market" ? [next.market[p.slot]] : []);
@@ -5885,7 +5903,13 @@ function applyMove(state, move) {
     }
     case "drawTickets": {
       const n = applyDrawTickets(next);
-      summary = `drew ${n} destination ticket${n === 1 ? "" : "s"}`;
+      summary = `drew ${n} destination tickets`;
+      advance = false;
+      break;
+    }
+    case "keepTickets": {
+      const n = applyKeepTickets(next, move.keep);
+      summary = `kept ${n} destination ticket${n === 1 ? "" : "s"}`;
       break;
     }
   }
@@ -5895,7 +5919,7 @@ function applyMove(state, move) {
   next.lastPublicDraw = publicDraw;
   next.log.push({ actor, text: summary });
   next.moveCount += 1;
-  endOfTurn(next);
+  if (advance) endOfTurn(next);
   return next;
 }
 function canDraw(state) {
@@ -5961,6 +5985,7 @@ function redactFor(state, seat) {
     lastSummary: state.lastSummary,
     lastClaimedRouteId: state.lastClaimedRouteId,
     lastPublicDraw: state.lastPublicDraw,
+    pendingTickets: state.pendingTickets && state.pendingTickets.player === seat ? state.pendingTickets.drawn : null,
     finalScores: over ? finalScores(state) : null
   };
 }

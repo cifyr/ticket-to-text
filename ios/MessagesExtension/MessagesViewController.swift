@@ -184,15 +184,19 @@ class MessagesViewController: MSMessagesAppViewController {
                 let view = try await self.client.move(gameId: gid, participantId: self.localID(c),
                                                       move: move, name: self.localName())
                 self.displayState = view.displayState(localID: self.localID(c))
-                if case .claim = move {
-                    self.stage(self.displayState!, url: self.gameIdURL(gid), in: c)
-                } else {
-                    // Draws: let the player privately see what they drew, then post.
+                switch move {
+                case .drawTickets:
+                    // Turn isn't over yet — show the keep/discard chooser, don't post.
+                    self.render(for: c)
+                case .drawCards:
+                    // Let the player privately see what they drew, then post.
                     self.render(for: c)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.7) { [weak self] in
                         guard let self, let ds = self.displayState else { return }
                         self.stage(ds, url: self.gameIdURL(gid), in: c)
                     }
+                default: // claim, keepTickets — the turn is done, post now
+                    self.stage(self.displayState!, url: self.gameIdURL(gid), in: c)
                 }
             } catch {
                 self.serverError = "\(error)"
