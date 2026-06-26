@@ -298,6 +298,28 @@ class MessagesViewController: MSMessagesAppViewController {
         render(for: c)
         Task { [weak self] in _ = try? await self?.client.leave(gameId: gid, participantId: me) }
     }
+    // End the in-progress game for everyone (host or any participant). The server
+    // sets `over`; we show the final standings and stage a "game over" bubble so
+    // the others see it ended. The game-over screen's "New Game" starts a fresh one.
+    private func onEndGameServer(_ c: MSConversation) {
+        guard let gid = serverGameId else { return }
+        let me = localID(c)
+        stopPolling()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let view = try await self.client.endGame(gameId: gid, participantId: me)
+                let over = view.displayState(localID: me)
+                self.lobby = nil
+                self.displayState = over
+                self.render(for: c)
+                self.stage(over, url: self.gameIdURL(gid), in: c)
+            } catch {
+                self.serverError = "\(error)"
+                self.render(for: c)
+            }
+        }
+    }
     private func onStartServer(_ c: MSConversation) {
         guard let gid = serverGameId else { return }
         Task { @MainActor [weak self] in
@@ -357,7 +379,9 @@ class MessagesViewController: MSMessagesAppViewController {
             onRequestExpand: { [weak self] in self?.requestPresentationStyle(.expanded) },
             onNewGame: { [weak self] in
                 if AppConfig.useServer { self?.onNewGameServer(c) } else { self?.onNewGameLocal(c) }
-            })
+            },
+            onEndGame: (AppConfig.useServer && !Game.isGameOver(state))
+                ? { [weak self] in self?.onEndGameServer(c) } : nil)
         setRoot(AnyView(view))
     }
 

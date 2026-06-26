@@ -174,3 +174,21 @@ export async function submitMove(
   const seat = assignedIndex(room.game, participantId)!;
   return redactFor(room.game, seat);
 }
+
+// End a started game for everyone. Any participant (host or not) can call it;
+// setting `over` makes isGameOver true, so the next time anyone opens the game
+// they see the final standings and can start a new one.
+export async function endGame(store: Store, gameId: string, participantId: string): Promise<PlayerView> {
+  const room = await store.update(gameId, (room) => {
+    if (!room) throw new GameNotFound(gameId);
+    if (room.kind !== "game") throw new BadState("game has not started");
+    const game = room.game;
+    game.over = true;
+    const seat = assignedIndex(game, participantId);
+    game.lastActor = seat ?? game.currentPlayer; // for the "X ended the game" caption
+    game.lastSummary = "ended the game";
+    return { kind: "game", game };
+  });
+  if (room.kind !== "game") throw new BadState("game has not started");
+  return redactFor(room.game, assignedIndex(room.game, participantId));
+}

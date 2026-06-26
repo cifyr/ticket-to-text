@@ -11,6 +11,7 @@ struct GameView: View {
     let onMove: (Move, String) -> Void   // controller applies (local) or sends to server
     let onRequestExpand: () -> Void
     let onNewGame: () -> Void
+    var onEndGame: (() -> Void)? = nil   // server mode: end the game for everyone
 
     @State private var errorText: String?
     @State private var showHelp = false
@@ -97,7 +98,7 @@ struct GameView: View {
             withAnimation { recapDismissedFor = state.moveCount }
         }
         .onChange(of: state.moveCount) { _, _ in showRevealForMyDraw() }
-        .sheet(isPresented: $showHelp) { HowToPlayView() }
+        .sheet(isPresented: $showHelp) { HowToPlayView(onEndGame: onEndGame) }
         .sheet(isPresented: $showLog) {
             LogSheet(log: state.log, name: name, routeId: routeIdForLog,
                      onShowRoute: { rid in showLog = false; page = 0; withAnimation(.snappy) { centerRouteId = rid } })

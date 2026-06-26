@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  createGame, createLobby, getView, joinLobby, leaveLobby, MemoryStore, setReady, startLobby, submitMove,
+  createGame, createLobby, endGame, getView, joinLobby, leaveLobby, MemoryStore, setReady, startLobby, submitMove,
   type Room, type Store,
 } from "./server.ts";
 
@@ -192,4 +192,29 @@ test("concurrent leave + join stay consistent (atomic update)", async () => {
   if (v.phase !== "lobby") { assert.fail("expected lobby"); return; }
   assert.equal(v.members.length, 2, "A and C remain after B leaves");
   assert.equal(v.members[0].isHost, true, "host seat is intact");
+});
+
+test("endGame: any participant ends the game for everyone; next view shows it over", async () => {
+  const store = new MemoryStore();
+  const { gameId } = await createGame(store, { playerCount: 2, hostId: "A", hostName: "Alice", seed: 7 });
+  // Seat B by taking a turn after A, so B is a real participant.
+  await submitMove(store, gameId, "A", { kind: "drawCards", picks: [{ from: "blind" }] }, "Alice");
+  await submitMove(store, gameId, "B", { kind: "drawCards", picks: [{ from: "blind" }] }, "Bob");
+
+  // The non-host (B) ends it.
+  const ended = await endGame(store, gameId, "B");
+  assert.equal(ended.over, true, "ender's view is over");
+  assert.ok(ended.finalScores, "final scores tallied");
+
+  // Everyone else sees it over too, with tickets revealed.
+  const aView = await getView(store, gameId, "A");
+  if (aView.phase !== "playing") { assert.fail("expected playing view"); return; }
+  assert.equal(aView.over, true, "other player sees the game as over");
+  assert.equal(ended.lastSummary, "ended the game");
+});
+
+test("endGame: rejected before the game has started (lobby)", async () => {
+  const store = new MemoryStore();
+  const { gameId } = await createLobby(store, { hostId: "A", hostName: "Alice" });
+  await assert.rejects(() => endGame(store, gameId, "A"), /not started/);
 });

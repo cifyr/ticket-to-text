@@ -43,6 +43,10 @@ struct GameClient {
         try await send("leave", method: "POST", query: [:],
                        body: ["gameId": gameId, "participantId": participantId])
     }
+    func endGame(gameId: String, participantId: String) async throws -> PlayerView {
+        try await send("end", method: "POST", query: [:],
+                       body: ["gameId": gameId, "participantId": participantId])
+    }
 
     // The /view endpoint can return a lobby or a game; decode by `phase`.
     func room(gameId: String, me: String) async throws -> RoomView {

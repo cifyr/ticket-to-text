@@ -4,6 +4,8 @@ import SwiftUI
 struct HowToPlayView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("playerName") private var playerName = ""
+    var onEndGame: (() -> Void)? = nil   // shown only when there's a live game to end
+    @State private var confirmEnd = false
 
     var body: some View {
         NavigationStack {
@@ -35,6 +37,10 @@ struct HowToPlayView: View {
                          text: "At the end, scores add route points, ticket points (minus unfinished ones), and a +\(Scoring.longestRouteBonus) bonus for the longest route. Highest total wins.")
 
                     legend
+
+                    if let onEndGame {
+                        endGameSection(onEndGame)
+                    }
                 }
                 .padding(20)
                 }
@@ -45,6 +51,27 @@ struct HowToPlayView: View {
             .toolbarBackground(Palette.parchment, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.tint(Palette.brass) } }
+        }
+    }
+
+    private func endGameSection(_ onEndGame: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("End this game").font(.slab(15, .bold)).foregroundStyle(Palette.ink)
+            Text("Ends the game for everyone and tallies the final score. Any player can do this — afterward you can start a new game.")
+                .font(.sans(12)).foregroundStyle(Palette.sepia)
+            Button(role: .destructive) { confirmEnd = true } label: {
+                Label("End Game", systemImage: "flag.checkered")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(QuietButtonStyle(tint: Palette.danger))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .stub(Palette.parchmentDeep, corner: 14, padding: 14)
+        .confirmationDialog("End the game for everyone?", isPresented: $confirmEnd, titleVisibility: .visible) {
+            Button("End Game", role: .destructive) { dismiss(); onEndGame() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This finishes the game for all players and scores it as final.")
         }
     }
 

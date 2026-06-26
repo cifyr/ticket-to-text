@@ -6170,6 +6170,20 @@ async function submitMove(store2, gameId, participantId, move, name) {
   const seat = assignedIndex(room.game, participantId);
   return redactFor(room.game, seat);
 }
+async function endGame(store2, gameId, participantId) {
+  const room = await store2.update(gameId, (room2) => {
+    if (!room2) throw new GameNotFound(gameId);
+    if (room2.kind !== "game") throw new BadState("game has not started");
+    const game = room2.game;
+    game.over = true;
+    const seat = assignedIndex(game, participantId);
+    game.lastActor = seat ?? game.currentPlayer;
+    game.lastSummary = "ended the game";
+    return { kind: "game", game };
+  });
+  if (room.kind !== "game") throw new BadState("game has not started");
+  return redactFor(room.game, assignedIndex(room.game, participantId));
+}
 
 // server/app-entry.ts
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -6295,6 +6309,11 @@ var server = createServer(async (req, res) => {
     if (req.method === "POST" && action === "start") {
       const b = await readBody(req);
       send(res, 200, await startLobby(store, b.gameId, b.participantId));
+      return;
+    }
+    if (req.method === "POST" && action === "end") {
+      const b = await readBody(req);
+      send(res, 200, await endGame(store, b.gameId, b.participantId));
       return;
     }
     send(res, 400, { error: "unknown action" });
