@@ -5493,8 +5493,42 @@ var ROUTE_DEFS = [
   // Montreal - Toronto
   [4, 3, 5, "black"],
   // Montreal - Sault Ste Marie
-  [3, 5, 2, "gray"]
+  [3, 5, 2, "gray"],
   // Sault Ste Marie - Toronto
+  // Double routes (mirror Ticket to Ride USA). A parallel second track between
+  // the same two cities; only ONE of each pair may ever be claimed (see canClaim).
+  [0, 8, 1, "gray"],
+  // Vancouver - Seattle (2)
+  [8, 11, 1, "gray"],
+  // Seattle - Portland (2)
+  [11, 17, 5, "green"],
+  // Portland - San Francisco (2)
+  [17, 16, 5, "orange"],
+  // San Francisco - Salt Lake City (2)
+  [9, 18, 4, "green"],
+  // Helena - Denver (2)
+  [18, 15, 4, "purple"],
+  // Denver - Omaha (2)
+  [18, 19, 4, "black"],
+  // Denver - Kansas City (2)
+  [10, 15, 2, "gray"],
+  // Duluth - Omaha (2)
+  [19, 20, 2, "blue"],
+  // Kansas City - Saint Louis (2)
+  [19, 25, 2, "gray"],
+  // Kansas City - Oklahoma City (2)
+  [20, 14, 2, "green"],
+  // Saint Louis - Chicago (2)
+  [14, 12, 3, "orange"],
+  // Chicago - Pittsburgh (2)
+  [7, 6, 2, "yellow"],
+  // New York - Boston (2)
+  [13, 7, 2, "orange"],
+  // Washington - New York (2)
+  [32, 33, 1, "gray"],
+  // Dallas - Houston (2)
+  [34, 27, 4, "yellow"]
+  // New Orleans - Atlanta (2)
 ];
 function mapRoutes() {
   return ROUTE_DEFS.map(([cityA, cityB, length, color], id) => ({
@@ -5760,8 +5794,12 @@ function bestGrayColor(hand) {
   }
   return best;
 }
+function siblingClaimed(state, route) {
+  return state.routes.some((r) => r.id !== route.id && r.claimedBy !== null && (r.cityA === route.cityA && r.cityB === route.cityB || r.cityA === route.cityB && r.cityB === route.cityA));
+}
 function canClaim(state, route, player) {
   if (route.claimedBy !== null) return false;
+  if (siblingClaimed(state, route)) return false;
   const p = state.players[player];
   if (p.trains < route.length) return false;
   const loco = locoCount(p.hand);
@@ -5780,6 +5818,7 @@ function applyClaim(state, routeId, chosen) {
   const route = state.routes.find((r) => r.id === routeId);
   if (!route) throw new IllegalMoveError(`no route with id ${routeId}`);
   if (route.claimedBy !== null) throw new IllegalMoveError(`route ${routeId} already claimed`);
+  if (siblingClaimed(state, route)) throw new IllegalMoveError(`parallel route to ${routeId} already claimed`);
   if (state.players[p].trains < route.length) throw new IllegalMoveError("not enough trains");
   const payColor = payColorFor(state, route, p, chosen);
   const hand = state.players[p].hand;
@@ -5855,7 +5894,7 @@ function applyKeepTickets(state, keep) {
   return kept.length;
 }
 function endOfTurn(state) {
-  if (state.routes.every((r) => r.claimedBy !== null)) {
+  if (state.routes.every((r) => r.claimedBy !== null || siblingClaimed(state, r))) {
     state.over = true;
     return;
   }
