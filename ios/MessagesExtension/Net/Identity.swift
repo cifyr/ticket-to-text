@@ -7,7 +7,7 @@ import Security
 // ever type it once.
 enum NameStore {
     private static let account = "playerName"
-    private static let service = "com.cadenwarren.tickettotext"
+    private static let service = "com.sachinsagrawal.tickettotext"
 
     static func load() -> String? {
         let query: [String: Any] = [

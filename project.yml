@@ -10,7 +10,7 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
     GENERATE_INFOPLIST_FILE: "NO"
-    DEVELOPMENT_TEAM: "ZRUFVD5GDT"
+    DEVELOPMENT_TEAM: "LP92N2QT42"
     CODE_SIGN_STYLE: Automatic
 targets:
   TicketToText:
@@ -20,7 +20,7 @@ targets:
       - ios/App
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.cadenwarren.tickettotext
+        PRODUCT_BUNDLE_IDENTIFIER: com.sachinsagrawal.tickettotext
         INFOPLIST_FILE: ios/App/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -34,7 +34,7 @@ targets:
       - ios/MessagesExtension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.cadenwarren.tickettotext.MessagesExtension
+        PRODUCT_BUNDLE_IDENTIFIER: com.sachinsagrawal.tickettotext.MessagesExtension
         INFOPLIST_FILE: ios/MessagesExtension/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: "iMessage App Icon"
         TARGETED_DEVICE_FAMILY: "1,2"
