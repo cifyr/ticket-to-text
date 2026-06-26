@@ -64,12 +64,12 @@ class MessagesViewController: MSMessagesAppViewController {
             }
             return
         }
-        // The bubble's url carries the gameId (delivered even on collapsed session
-        // bubbles), else the current/last game. So any tap opens the right game.
-        guard let gid = message.url.flatMap({ gameId(from: $0) }) ?? serverGameId ?? recallGame() else { return }
+        // Each game's bubbles carry that game's gameId in their url, so tapping a
+        // bubble opens exactly that game — multiple games can coexist in one chat,
+        // selected by which bubble you tap.
+        guard let gid = message.url.flatMap({ gameId(from: $0) }) else { return }
         if gid != serverGameId { gameSession = nil }  // different game -> its own move thread
         serverGameId = gid
-        rememberGame(gid)
         fetchRoom(gid, conversation) // keeps current view visible while it refreshes
     }
 
@@ -119,10 +119,6 @@ class MessagesViewController: MSMessagesAppViewController {
         return n == 0 ? 2 : max(2, min(4, n))
     }
 
-    // Backup resume path: the tapped bubble's url (gameId) is the primary way in,
-    // but the persisted id lets you resume even if you open from the app drawer.
-    private func rememberGame(_ gid: String) { UserDefaults.standard.set(gid, forKey: "lastGameId") }
-    private func recallGame() -> String? { UserDefaults.standard.string(forKey: "lastGameId") }
 
     // MARK: Offline (local) mode
 
@@ -157,19 +153,18 @@ class MessagesViewController: MSMessagesAppViewController {
 
     private func loadServer(_ c: MSConversation) {
         serverError = nil
-        // Resolve the game: the tapped bubble's url carries the gameId (delivered
-        // even on collapsed session bubbles), else the game we hold, else the
-        // persisted one. So anyone tapping the thread opens the game.
-        let tapped = c.selectedMessage?.url.flatMap { gameId(from: $0) }
-        let gid = tapped ?? serverGameId ?? recallGame()
-        if let gid {
+        // Multi-game per chat: a tapped bubble opens its specific game (the gameId
+        // rides in the bubble's url). Opening from the app toolbar (no selected
+        // message) goes to the start screen so you can begin a NEW game instead of
+        // resuming the last one — to return to an existing game, tap its bubble.
+        if let gid = c.selectedMessage?.url.flatMap({ gameId(from: $0) }) {
             if gid != serverGameId { gameSession = nil }  // different game -> its own move thread
             serverGameId = gid
-            rememberGame(gid)
             fetchRoom(gid, c) // keeps any current lobby/game visible while it refreshes
         } else {
-            lobby = nil; displayState = nil; serverGameId = nil
-            render(for: c) // no game yet -> start screen
+            stopPolling()
+            lobby = nil; displayState = nil; serverGameId = nil; gameSession = nil
+            render(for: c) // toolbar open -> start screen (New Game)
         }
     }
     private func fetchRoom(_ gid: String, _ c: MSConversation) {
@@ -234,7 +229,6 @@ class MessagesViewController: MSMessagesAppViewController {
                 let resp = try await self.client.createLobby(hostId: self.localID(c), hostName: self.localName(),
                                                              maxPlayers: 4)
                 self.serverGameId = resp.gameId
-                self.rememberGame(resp.gameId)
                 self.gameSession = nil   // fresh thread for this new game
                 self.lobby = resp.view
                 self.displayState = nil
@@ -294,7 +288,6 @@ class MessagesViewController: MSMessagesAppViewController {
         stopPolling()
         // Quit back to the start screen; tell the server so we leave the lobby.
         lobby = nil; displayState = nil; serverGameId = nil; gameSession = nil
-        UserDefaults.standard.removeObject(forKey: "lastGameId")
         render(for: c)
         Task { [weak self] in _ = try? await self?.client.leave(gameId: gid, participantId: me) }
     }
