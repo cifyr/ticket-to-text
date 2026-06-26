@@ -39,7 +39,7 @@ function lobbyViewFor(lobby: Lobby, participantId: string): LobbyView {
     you: youIdx === -1 ? null : youIdx,
     maxPlayers: lobby.maxPlayers,
     members: lobby.members.map((m, i) => ({ name: m.name, ready: m.ready, isHost: i === 0 })),
-    canStart: lobby.members.length >= 2 && lobby.members.every((m) => m.ready),
+    canStart: lobby.members.length >= 2, // host may start whenever 2-4 are aboard
   };
 }
 
@@ -92,7 +92,6 @@ export async function startLobby(store: Store, gameId: string, participantId: st
   const lobby = await loadLobby(store, gameId);
   if (participantId !== lobby.hostId) throw new BadState("only the host can start");
   if (lobby.members.length < 2) throw new BadState("need at least 2 players");
-  if (!lobby.members.every((m) => m.ready)) throw new BadState("everyone must be ready");
 
   const game = newGame(lobby.seed, lobby.members.length);
   lobby.members.forEach((m, i) => { game.playerIDs[i] = m.id; game.playerNames[i] = m.name; });

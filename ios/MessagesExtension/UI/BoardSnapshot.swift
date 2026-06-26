@@ -35,9 +35,9 @@ private struct MoveRecapImage: View {
                 .lineLimit(1).minimumScaleFactor(0.6)
                 .padding(.top, 6).padding(.horizontal, 10)
 
-            BoardView(state: state, selectedRouteId: state.lastClaimedRouteId, highlightTicket: nil,
+            BoardView(state: state, selectedRouteId: nil,
                       canAct: false, claimable: { _ in false }, onSelect: { _ in },
-                      showNames: false, showLengthPips: false, dotsOnSelected: true)
+                      showNames: false, reportMode: true)
 
             if state.lastClaimedRouteId == nil { bottomStrip }
         }

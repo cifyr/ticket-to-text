@@ -4,9 +4,6 @@ import SwiftUI
 struct TicketsSheet: View {
     let tickets: [Ticket]
     let myRoutes: [Route]
-    let ticketsLeft: Int
-    let canDraw: Bool
-    let onDraw: () -> Void
     let onShow: (Ticket) -> Void   // highlight this ticket on the map and close
 
     @Environment(\.dismiss) private var dismiss
@@ -17,37 +14,32 @@ struct TicketsSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    SectionRule(title: "Destination Tickets")
-                    Text("\(doneCount) of \(tickets.count) routes completed")
-                        .font(.sans(12)).foregroundStyle(Palette.sepiaLight)
+            ZStack {
+                PaperFill()
+                ScrollView {
+                    VStack(spacing: 16) {
+                        SectionRule(title: "Destination Tickets")
+                        Text("\(doneCount) of \(tickets.count) routes completed")
+                            .font(.sans(12)).foregroundStyle(Palette.sepiaLight)
 
-                    Text("Secret goals. Connect the two cities with routes you claim to earn the points. Any ticket you don't finish is SUBTRACTED at the end — keep only ones you can complete. Tap a ticket to see it on the map.")
-                        .font(.sans(13)).foregroundStyle(Palette.sepia).multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Secret goals. Connect the two cities with routes you claim to earn the points. Any ticket you don't finish is SUBTRACTED at the end — keep only ones you can complete. Tap a ticket to see it on the map.")
+                            .font(.sans(13)).foregroundStyle(Palette.sepia).multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                    ForEach(tickets) { t in
-                        let done = Scoring.connected(myRoutes, from: t.cityA, to: t.cityB)
-                        Button { onShow(t) } label: { ticketStub(t, done: done) }
-                            .buttonStyle(.plain)
-                    }
-
-                    if ticketsLeft > 0 {
-                        Button(action: onDraw) {
-                            Label("Draw \(min(3, ticketsLeft)) more (uses your turn)", systemImage: "plus.circle.fill")
-                        }
-                        .buttonStyle(BrassButtonStyle()).disabled(!canDraw).opacity(canDraw ? 1 : 0.55)
-                        if !canDraw {
-                            Text("You can draw tickets on your turn.").font(.sans(11)).foregroundStyle(Palette.sepiaLight)
+                        ForEach(tickets) { t in
+                            let done = Scoring.connected(myRoutes, from: t.cityA, to: t.cityB)
+                            Button { onShow(t) } label: { ticketStub(t, done: done) }
+                                .buttonStyle(.plain)
                         }
                     }
+                    .padding(20)
                 }
-                .padding(20)
+                .scrollContentBackground(.hidden)
             }
-            .background(PaperFill())
             .navigationTitle("Your Tickets")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Palette.parchment, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.tint(Palette.brass) } }
         }
     }
@@ -88,7 +80,8 @@ struct TicketsSheet: View {
             }
             .frame(width: 84)
         }
-        .stub(Palette.parchmentDeep, corner: 12, padding: 0, stroke: Palette.hairline)
+        .stub(done ? Color(hex: 0xD7E8D5) : Palette.parchmentDeep, corner: 12, padding: 0,
+              stroke: done ? Palette.success.opacity(0.55) : Palette.hairline)
     }
 }
 

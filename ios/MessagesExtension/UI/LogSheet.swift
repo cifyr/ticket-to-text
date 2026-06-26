@@ -8,28 +8,34 @@ struct LogSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                if log.isEmpty {
-                    Text("No moves yet.").font(.sans(14)).foregroundStyle(Palette.sepia).padding(.top, 40)
-                } else {
-                    VStack(spacing: 8) {
-                        ForEach(Array(log.enumerated()).reversed(), id: \.offset) { _, entry in
-                            HStack(alignment: .top, spacing: 10) {
-                                EnamelToken(color: ownerColor(entry.actor),
-                                            label: String(name(entry.actor).prefix(1)).uppercased(), size: 22)
-                                Text("\(name(entry.actor)) \(entry.text)").font(.sans(13)).foregroundStyle(Palette.ink)
-                                Spacer(minLength: 0)
+            ZStack {
+                PaperFill()
+                ScrollView {
+                    if log.isEmpty {
+                        Text("No moves yet.").font(.sans(14)).foregroundStyle(Palette.sepia)
+                            .frame(maxWidth: .infinity).padding(.top, 40)
+                    } else {
+                        VStack(spacing: 8) {
+                            ForEach(Array(log.enumerated()).reversed(), id: \.offset) { _, entry in
+                                HStack(alignment: .top, spacing: 10) {
+                                    EnamelToken(color: ownerColor(entry.actor),
+                                                label: String(name(entry.actor).prefix(1)).uppercased(), size: 22)
+                                    Text("\(name(entry.actor)) \(entry.text)").font(.sans(13)).foregroundStyle(Palette.ink)
+                                    Spacer(minLength: 0)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .stub(Palette.parchmentDeep, corner: 10, padding: 10)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .stub(Palette.parchmentDeep, corner: 10, padding: 10)
                         }
+                        .padding(16)
                     }
-                    .padding(16)
                 }
+                .scrollContentBackground(.hidden)
             }
-            .background(PaperFill())
             .navigationTitle("Game Log")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Palette.parchment, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.tint(Palette.brass) } }
         }
     }

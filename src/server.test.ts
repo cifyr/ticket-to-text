@@ -83,15 +83,8 @@ test("lobby: players join, ready up, host starts; sizes to the join count", asyn
   const afterC = await joinLobby(store, gameId, "C", "Cara");
   assert.equal(afterC.members.length, 3);
 
-  // Can't start until everyone is ready.
-  await setReady(store, gameId, "A", true);
-  await setReady(store, gameId, "B", true);
-  let v = await setReady(store, gameId, "C", false);
-  assert.equal(v.canStart, false);
-  await assert.rejects(() => startLobby(store, gameId, "A"), /ready/);
-
-  v = await setReady(store, gameId, "C", true);
-  assert.equal(v.canStart, true);
+  // Host can start whenever 2+ are aboard, regardless of ready state.
+  assert.equal(afterC.canStart, true);
 
   // Only the host can start.
   await assert.rejects(() => startLobby(store, gameId, "B"), /host/);

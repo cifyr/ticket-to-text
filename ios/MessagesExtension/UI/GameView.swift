@@ -23,6 +23,7 @@ struct GameView: View {
     @State private var recapDismissedFor = -1
     @State private var confirmedSeat: Int?
     @State private var page = 0   // 0 = map, 1 = cards
+    @State private var focusedOwner: Int?   // tap a player to spotlight their routes
 
     private var mySeat: Int {
         Game.actingIndex(state, participantID: localParticipantID) ?? state.currentPlayer
@@ -75,16 +76,11 @@ struct GameView: View {
         .sheet(isPresented: $showHelp) { HowToPlayView() }
         .sheet(isPresented: $showLog) { LogSheet(log: state.log, name: name) }
         .sheet(isPresented: $showResults) {
-            FinalScoreView(state: state, onNewGame: { showResults = false; onNewGame() })
+            FinalScoreView(state: state)
         }
         .sheet(isPresented: $showTickets) {
             TicketsSheet(tickets: state.players[mySeat].tickets,
                          myRoutes: state.routes.filter { $0.claimedBy == mySeat },
-                         ticketsLeft: state.ticketDeck.count, canDraw: canAct,
-                         onDraw: {
-                             showTickets = false
-                             apply(.drawTickets, caption: "drew \(min(Game.startingTickets, state.ticketDeck.count)) tickets")
-                         },
                          onShow: { t in showTickets = false; page = 0; flashTicket(t) })
         }
     }
@@ -153,17 +149,24 @@ struct GameView: View {
             RailIconButton(system: "ticket.fill", badge: "\(state.players[mySeat].tickets.count)") { showTickets = true }
             RailIconButton(system: "clock.arrow.circlepath") { showLog = true }
             RailIconButton(system: "questionmark") { showHelp = true }
-            RailIconButton(system: "arrow.clockwise") { onNewGame() }
         }
     }
 
     // Player discs (active one pulses) + the local player's trains and score.
+    // Tapping a disc spotlights that player's routes on the map.
     private var turnBar: some View {
         HStack(spacing: 8) {
             HStack(spacing: 7) {
                 ForEach(0..<state.players.count, id: \.self) { p in
-                    EnamelToken(color: ownerColor(p), label: initial(p),
-                                active: !Game.isGameOver(state) && state.currentPlayer == p, size: 30)
+                    Button {
+                        withAnimation(.snappy) { focusedOwner = (focusedOwner == p) ? nil : p; page = 0 }
+                    } label: {
+                        EnamelToken(color: ownerColor(p), label: initial(p),
+                                    active: !Game.isGameOver(state) && state.currentPlayer == p, size: 30)
+                            .overlay(Circle().stroke(Palette.ink, lineWidth: focusedOwner == p ? 2.5 : 0))
+                            .opacity(focusedOwner == nil || focusedOwner == p ? 1 : 0.5)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             Spacer(minLength: 4)
@@ -240,7 +243,9 @@ struct GameView: View {
     private var mapPage: some View {
         BoardArea(state: state, selectedRouteId: selectedRouteId, highlightTicket: highlightTicket,
                   canAct: effectiveCanAct, claimable: { Game.canClaim(state, $0, player: mySeat) },
-                  onSelect: { id in withAnimation(.snappy) { selectedRouteId = id } })
+                  onSelect: { id in withAnimation(.snappy) { selectedRouteId = id } },
+                  focusedOwner: focusedOwner,
+                  onBackgroundTap: { withAnimation(.snappy) { focusedOwner = nil } })
             .overlay(alignment: .bottom) {
                 if let id = selectedRouteId, let route = state.routes.first(where: { $0.id == id }) {
                     RouteDetailCard(
@@ -260,15 +265,20 @@ struct GameView: View {
     // MARK: Cards page
 
     private var cardsPage: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                if effectiveCanAct { drawSection } else { waiting }
-                handSection
+        GeometryReader { geo in
+            ScrollView {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    VStack(spacing: 16) { drawSection; handSection }
+                        .padding(.horizontal, 2)
+                    Spacer(minLength: 0)
+                }
+                .frame(minHeight: geo.size.height)
             }
-            .padding(.top, 4).padding(.bottom, 8)
         }
     }
 
+    // The face-up market is always visible; off-turn it's just non-interactive.
     private var drawSection: some View {
         VStack(spacing: 10) {
             SectionRule(title: "Face-up Market")
@@ -282,17 +292,24 @@ struct GameView: View {
                     .frame(maxWidth: .infinity)
                     .onTapGesture { selectBlind() }
             }
-            HStack(spacing: 10) {
-                Button { commitDraw() } label: { Text(draft.isEmpty ? "Draw cards" : "Draw \(draft.count)") }
-                    .buttonStyle(BrassButtonStyle()).disabled(draft.isEmpty).opacity(draft.isEmpty ? 0.55 : 1)
-                if !draft.isEmpty {
-                    Button { draft = [] } label: { Text("Clear") }
-                        .buttonStyle(QuietButtonStyle()).frame(width: 110)
+            .opacity(effectiveCanAct ? 1 : 0.6)
+
+            if effectiveCanAct {
+                HStack(spacing: 10) {
+                    Button { commitDraw() } label: { Text(draft.isEmpty ? "Draw cards" : "Draw \(draft.count)") }
+                        .buttonStyle(BrassButtonStyle()).disabled(draft.isEmpty).opacity(draft.isEmpty ? 0.55 : 1)
+                    if !draft.isEmpty {
+                        Button { draft = [] } label: { Text("Clear") }
+                            .buttonStyle(QuietButtonStyle()).frame(width: 110)
+                    }
                 }
+                Text(draft.isEmpty ? "Pick up to \(Game.maxDraw) cards, or tap a route on the map to claim it."
+                                   : "Tap Draw to take \(draft.count), or pick more.")
+                    .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
+            } else {
+                Text("Waiting for \(name(state.currentPlayer)) — scout the market and board while you wait.")
+                    .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
             }
-            Text(draft.isEmpty ? "Pick up to \(Game.maxDraw) cards, or tap a route on the map to claim it."
-                               : "Tap Draw to take \(draft.count), or pick more.")
-                .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
         }
     }
 
@@ -347,22 +364,10 @@ struct GameView: View {
             Image(systemName: "flag.checkered").foregroundStyle(Palette.brass)
             Text(statusText).font(.slab(17, .bold)).foregroundStyle(Palette.ink)
             Spacer()
-            Button { showResults = true } label: { Text("Results") }.buttonStyle(QuietButtonStyle()).frame(width: 100)
-            Button { onNewGame() } label: { Text("New") }.buttonStyle(BrassButtonStyle()).frame(width: 90)
+            Button { showResults = true } label: { Text("Results") }.buttonStyle(BrassButtonStyle()).frame(width: 120)
         }
         .stub(Palette.parchmentDeep, corner: 14, padding: 12)
         .onAppear { showResults = true }
-    }
-
-    private var waiting: some View {
-        VStack(spacing: 6) {
-            ProgressView().tint(Palette.brass)
-            Text("Waiting for \(name(state.currentPlayer))").font(.slab(15, .semibold)).foregroundStyle(Palette.ink)
-            Text("Inspect the board, then reopen after they send their turn.")
-                .font(.sans(11)).foregroundStyle(Palette.sepia).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity).padding(.vertical, 14)
-        .stub(Palette.parchmentDeep, corner: 14, padding: 8)
     }
 
     // MARK: Actions

@@ -65,10 +65,10 @@ struct LobbyScreen: View {
                         .buttonStyle(QuietButtonStyle())
                     Button(action: onStart) { Label("Depart the Station", systemImage: "play.fill") }
                         .buttonStyle(BrassButtonStyle()).disabled(!lobby.canStart).opacity(lobby.canStart ? 1 : 0.55)
-                    if !lobby.canStart {
-                        Text("Send the invite, then start once everyone has joined and readied (tap refresh).")
-                            .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
-                    }
+                    Text(lobby.canStart
+                         ? "Start whenever you're ready — the game sizes to whoever's aboard (2-4)."
+                         : "Send the invite and wait for at least one more player to join.")
+                        .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
                 } else {
                     Text("Waiting for the host to start… (tap refresh to update)")
                         .font(.sans(12)).foregroundStyle(Palette.sepia).multilineTextAlignment(.center)

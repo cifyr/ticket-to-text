@@ -31,6 +31,8 @@ enum Palette {
     static let dark          = Color(hex: 0x221C16)
     static let hairline      = Color(hex: 0x6E5C49, alpha: 0.30)
     static let brassHair     = Color(hex: 0xC8932B, alpha: 0.45)
+    static let routeHot       = Color(hex: 0xFF6A1A) // most-recent claim / destination line
+    static let activeRing     = Color(hex: 0xFFD21E) // bright ring around the player whose turn it is
 
     // Enamel train-car colors (also used as player/owner colors).
     static let carRed    = Color(hex: 0xC0392B)
@@ -251,11 +253,11 @@ struct EnamelToken: View {
                     colors: [.white.opacity(0.4), color],
                     center: UnitPoint(x: 0.35, y: 0.28), startRadius: 1, endRadius: size * 0.7))
             )
-            .overlay(Circle().stroke(active ? Palette.brass : .black.opacity(0.3),
-                                     lineWidth: active ? 2 : 1.5))
+            .overlay(Circle().stroke(active ? Palette.activeRing : .black.opacity(0.3),
+                                     lineWidth: active ? 3 : 1.5))
             .overlay(
                 active
-                    ? Circle().stroke(Palette.brass.opacity(pulse ? 0 : 0.55), lineWidth: pulse ? 8 : 2)
+                    ? Circle().stroke(Palette.activeRing.opacity(pulse ? 0 : 0.7), lineWidth: pulse ? 10 : 3)
                     : nil
             )
             .shadow(color: .black.opacity(0.25), radius: 1, y: 1)
