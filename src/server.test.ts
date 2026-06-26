@@ -78,25 +78,40 @@ test("lobby: players join, ready up, host starts; sizes to the join count", asyn
   assert.equal(view.members[0].isHost, true);
   assert.equal(view.canStart, false);
 
-  // B and C join (3-player game forms from who shows up).
+  // B and C join; C never readies.
   await joinLobby(store, gameId, "B", "Bob");
-  const afterC = await joinLobby(store, gameId, "C", "Cara");
-  assert.equal(afterC.members.length, 3);
+  await joinLobby(store, gameId, "C", "Cara");
 
-  // Host can start whenever 2+ are aboard, regardless of ready state.
-  assert.equal(afterC.canStart, true);
+  // Can't start until at least 2 are ready (only readied players are in).
+  await setReady(store, gameId, "A", true);
+  let v = await getView(store, gameId, "A");
+  assert.equal(v.canStart, false, "one ready isn't enough");
+  await assert.rejects(() => startLobby(store, gameId, "A"), /ready/);
+  v = await setReady(store, gameId, "B", true);
+  assert.equal(v.canStart, true);
 
   // Only the host can start.
   await assert.rejects(() => startLobby(store, gameId, "B"), /host/);
 
+  // C never readied, so the game forms from the 2 ready players only.
   const game = await startLobby(store, gameId, "A");
   assert.equal(game.phase, "playing");
-  assert.equal(game.players.length, 3, "game sized to the 3 who joined");
+  assert.equal(game.players.length, 2, "game sized to the 2 ready players");
   assert.equal(game.you, 0);
 
-  // After start, the view is the game (not the lobby), and moves work.
+  // The unready player isn't in the game.
   const cView = await getView(store, gameId, "C");
   assert.equal(cView.phase, "playing");
+  assert.equal(cView.you, null, "C was left behind");
+});
+
+test("lobby: readying up also joins you", async () => {
+  const store = new MemoryStore();
+  const { gameId } = await createLobby(store, { hostId: "A", hostName: "Alice" });
+  const v = await setReady(store, gameId, "Z", true, "Zoe"); // never joined first
+  assert.equal(v.members.length, 2);
+  assert.equal(v.members[1].name, "Zoe");
+  assert.equal(v.members[1].ready, true);
 });
 
 test("lobby: moving before start is rejected; lobby respects max players", async () => {

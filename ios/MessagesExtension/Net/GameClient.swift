@@ -30,9 +30,10 @@ struct GameClient {
         if let name { body["name"] = name }
         return try await send("join", method: "POST", query: [:], body: body)
     }
-    func ready(gameId: String, participantId: String, ready: Bool) async throws -> LobbyView {
-        try await send("ready", method: "POST", query: [:],
-                       body: ["gameId": gameId, "participantId": participantId, "ready": ready])
+    func ready(gameId: String, participantId: String, ready: Bool, name: String? = nil) async throws -> LobbyView {
+        var body: [String: Any] = ["gameId": gameId, "participantId": participantId, "ready": ready]
+        if let name { body["name"] = name }
+        return try await send("ready", method: "POST", query: [:], body: body)
     }
     func start(gameId: String, participantId: String) async throws -> PlayerView {
         try await send("start", method: "POST", query: [:],

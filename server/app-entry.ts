@@ -87,7 +87,7 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === "POST" && action === "ready") {
       const b = await readBody(req);
-      send(res, 200, await setReady(store, b.gameId, b.participantId, !!b.ready));
+      send(res, 200, await setReady(store, b.gameId, b.participantId, !!b.ready, b.name));
       return;
     }
     if (req.method === "POST" && action === "start") {

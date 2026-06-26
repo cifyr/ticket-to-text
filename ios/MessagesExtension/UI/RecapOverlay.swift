@@ -19,7 +19,9 @@ struct RecapOverlay: View {
                 if state.lastClaimedRouteId != nil {
                     BoardView(state: state, selectedRouteId: nil,
                               canAct: false, claimable: { _ in false }, onSelect: { _ in },
-                              showNames: false, reportMode: true)
+                              showNames: false, style: .thin)
+                        .scaleEffect(1.25)   // zoom in a touch; scales about center so it stays centered
+                        .frame(maxWidth: .infinity)
                         .frame(height: 300)
                         .background(
                             ZStack {
