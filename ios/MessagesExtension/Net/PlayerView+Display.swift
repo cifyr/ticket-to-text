@@ -12,8 +12,9 @@ extension PlayerView {
         }
         let names: [String?] = players.map { $0.name }
         let ps: [PlayerState] = (0..<n).map { i in
+            // Your own tickets are always real; others' are revealed only at game end.
             PlayerState(hand: i == you ? yourHand : [],
-                        tickets: i == you ? yourTickets : [],
+                        tickets: i == you ? yourTickets : players[i].tickets,
                         trains: players[i].trains, score: players[i].score)
         }
         let placeholderTicket = Ticket(id: -1, cityA: 0, cityB: 0, points: 0)

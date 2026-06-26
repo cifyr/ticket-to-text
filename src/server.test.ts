@@ -21,7 +21,7 @@ test("host view exposes only the host's own secrets", async () => {
   assert.equal((view as Record<string, unknown>).ticketDeck, undefined);
   for (const p of view.players) {
     assert.equal("hand" in p, false, "public player has no hand array");
-    assert.equal("tickets" in p, false, "public player has no tickets array");
+    assert.equal(p.tickets.length, 0, "tickets stay hidden until the game is over");
     assert.equal(typeof p.handCount, "number");
   }
   assert.ok(typeof view.deckCount === "number");
