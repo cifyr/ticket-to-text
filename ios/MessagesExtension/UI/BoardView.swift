@@ -94,8 +94,9 @@ struct BoardArea: View {
     private func scrollMap(_ geo: GeometryProxy) -> some View {
         let fitW = min(geo.size.width, geo.size.height / aspect)
         let scale: CGFloat = zoomed ? closeScale : baseScale
+        let vStretch: CGFloat = zoomed ? 1 : 1.22   // zoomed-out reads a touch taller
         let contentW = fitW * scale
-        let contentH = fitW * aspect * scale
+        let contentH = fitW * aspect * scale * vStretch
         return ScrollView([.horizontal, .vertical], showsIndicators: false) {
             BoardView(state: state, selectedRouteId: selectedRouteId,
                       canAct: canAct, claimable: claimable, onSelect: onSelect,
@@ -150,6 +151,8 @@ private struct CenteredRouteBoard: View {
                 .clipped()
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onTap)
+                // Auto-release so it never gets stuck; a tap dismisses sooner.
+                .task { try? await Task.sleep(nanoseconds: 1_500_000_000); onTap() }
         }
     }
 
@@ -214,11 +217,17 @@ private struct DestinationLine: View {
 
 // Shared layout + drawing so the live board and the bubble snapshot match.
 enum BoardGeometry {
+    // City coordinates only span x 0.04-0.94 and y 0.05-0.67, so we normalize to
+    // those bounds — the map fills the frame instead of leaving a dead bottom third.
+    private static let xMin = 0.04, xMax = 0.94, yMin = 0.05, yMax = 0.67
+
     static func point(_ nx: Double, _ ny: Double, in size: CGSize) -> CGPoint {
+        let rx = (nx - xMin) / (xMax - xMin)
+        let ry = (ny - yMin) / (yMax - yMin)
         // Generous padding so edge cities and their labels are never clipped.
-        let padX: CGFloat = 44, padY: CGFloat = 30
+        let padX: CGFloat = 50, padY: CGFloat = 34
         let w = size.width - padX * 2, h = size.height - padY * 2
-        return CGPoint(x: padX + CGFloat(nx) * w, y: padY + CGFloat(ny) * h)
+        return CGPoint(x: padX + CGFloat(rx) * w, y: padY + CGFloat(ry) * h)
     }
 
     static func positions(in size: CGSize) -> [CGPoint] {
@@ -329,12 +338,12 @@ enum BoardGeometry {
             let car = carPath(center: center, len: carLen, height: height, angle: angle)
             switch kind {
             case .open:
-                // Unowned: solid outline only, no fill.
-                ctx.stroke(car, with: .color(fill), lineWidth: 1.8)
+                // Can't buy it (yet): dashed outline, no fill.
+                ctx.stroke(car, with: .color(fill), style: StrokeStyle(lineWidth: 1.7, dash: [3, 2]))
             case .buyable:
-                // Unowned but claimable: solid outline + gold glow, still no fill.
+                // You can buy it: solid outline + gold glow, no fill.
                 ctx.stroke(car, with: .color(Palette.brassLight.opacity(0.85)), lineWidth: 4.5)
-                ctx.stroke(car, with: .color(fill), lineWidth: 2.2)
+                ctx.stroke(car, with: .color(fill), lineWidth: 2.4)
             case .owned:
                 ctx.fill(car, with: .color(fill))
                 ctx.stroke(car, with: .color(.black.opacity(0.5)), lineWidth: 1)
