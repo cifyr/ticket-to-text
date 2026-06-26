@@ -194,7 +194,10 @@ class MessagesViewController: MSMessagesAppViewController {
         // reopening their own invite, where Messages leaves selectedMessage nil).
         // Opening fresh from the app drawer falls through to the start screen.
         let tapped = c.selectedMessage?.url.flatMap { gameId(from: $0) }
-        let gid = tapped ?? serverGameId ?? (c.selectedMessage != nil ? recallGame() : nil)
+        // Only fall back to the persisted room when NO bubble was tapped (host
+        // reopening from the drawer). A tapped invite whose url didn't resolve must
+        // NOT drop you into your own old lobby — that made tappers phantom hosts.
+        let gid = tapped ?? serverGameId ?? (c.selectedMessage == nil ? recallGame() : nil)
         diag("resolve tap=\(tapped ?? "nil") sgid=\(serverGameId ?? "nil") recall=\(recallGame() ?? "nil") -> \(gid ?? "START")")
         if let gid {
             serverGameId = gid
@@ -433,8 +436,10 @@ class MessagesViewController: MSMessagesAppViewController {
     }
 
     private func gameIdURL(_ gid: String) -> URL {
+        // Query items ONLY (no custom scheme): Messages treats MSMessage.url as an
+        // opaque data carrier and strips unknown custom schemes on delivery, which
+        // made url arrive nil on the recipient. The parser handles both formats.
         var comps = URLComponents()
-        comps.scheme = "tickettotext"; comps.host = "game"
         comps.queryItems = [URLQueryItem(name: "g", value: gid)]
         return comps.url!
     }
