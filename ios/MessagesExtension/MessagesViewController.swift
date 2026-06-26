@@ -15,6 +15,7 @@ class MessagesViewController: MSMessagesAppViewController {
     private var loading = false
     private var lobby: LobbyView?
     private var pollTask: Task<Void, Never>?
+    private var gameSession: MSSession?   // shared so in-game move bubbles collapse into one thread
 
     private lazy var client = GameClient(baseURL: AppConfig.serverBaseURL, bypassToken: AppConfig.bypassToken)
 
@@ -64,8 +65,12 @@ class MessagesViewController: MSMessagesAppViewController {
             }
             return
         }
-        guard let gid = message.url.flatMap({ gameId(from: $0) }) else { return }
+        // Tapped bubble's url (lobby invites carry it), else the current/last game.
+        // Move bubbles collapse and arrive url=nil, so recall reopens the game.
+        guard let gid = message.url.flatMap({ gameId(from: $0) }) ?? serverGameId ?? recallGame() else { return }
+        if gid != serverGameId { gameSession = nil }  // different game -> its own move thread
         serverGameId = gid
+        rememberGame(gid)
         fetchRoom(gid, conversation) // keeps current view visible while it refreshes
     }
 
@@ -115,6 +120,11 @@ class MessagesViewController: MSMessagesAppViewController {
         return n == 0 ? 2 : max(2, min(4, n))
     }
 
+    // The active game id persists so you can resume after fully closing Messages:
+    // collapsed move bubbles arrive with url=nil, so this is what reopens the game.
+    private func rememberGame(_ gid: String) { UserDefaults.standard.set(gid, forKey: "lastGameId") }
+    private func recallGame() -> String? { UserDefaults.standard.string(forKey: "lastGameId") }
+
     // MARK: Offline (local) mode
 
     private func decodedLocal(from c: MSConversation) -> GameState {
@@ -148,14 +158,15 @@ class MessagesViewController: MSMessagesAppViewController {
 
     private func loadServer(_ c: MSConversation) {
         serverError = nil
-        // Each bubble carries its own gameId, so tapping one opens exactly that
-        // game (multiple games can live in one chat). Opening from the app drawer
-        // has no tapped bubble -> fall to the game we already hold this activation,
-        // else the start screen (the drawer is the "new game" entry point).
+        // Resolve the game: tapped bubble's url (lobby invites carry it), else the
+        // game we already hold, else the persisted one. Move bubbles collapse into
+        // one thread and arrive url=nil, so recall is what resumes after a reopen.
         let tapped = c.selectedMessage?.url.flatMap { gameId(from: $0) }
-        let gid = tapped ?? serverGameId
+        let gid = tapped ?? serverGameId ?? recallGame()
         if let gid {
+            if gid != serverGameId { gameSession = nil }  // different game -> its own move thread
             serverGameId = gid
+            rememberGame(gid)
             fetchRoom(gid, c) // keeps any current lobby/game visible while it refreshes
         } else {
             lobby = nil; displayState = nil; serverGameId = nil
@@ -221,6 +232,7 @@ class MessagesViewController: MSMessagesAppViewController {
                 let resp = try await self.client.createLobby(hostId: self.localID(c), hostName: self.localName(),
                                                              maxPlayers: 4)
                 self.serverGameId = resp.gameId
+                self.rememberGame(resp.gameId)
                 self.lobby = resp.view
                 self.displayState = nil
                 self.serverError = nil
@@ -278,7 +290,7 @@ class MessagesViewController: MSMessagesAppViewController {
         let me = localID(c)
         stopPolling()
         // Quit back to the start screen; tell the server so we leave the lobby.
-        lobby = nil; displayState = nil; serverGameId = nil
+        lobby = nil; displayState = nil; serverGameId = nil; gameSession = nil
         UserDefaults.standard.removeObject(forKey: "lastGameId")
         render(for: c)
         Task { [weak self] in _ = try? await self?.client.leave(gameId: gid, participantId: me) }
@@ -291,6 +303,7 @@ class MessagesViewController: MSMessagesAppViewController {
                 let pv = try await self.client.start(gameId: gid, participantId: self.localID(c))
                 self.stopPolling()
                 self.lobby = nil
+                self.gameSession = MSSession()   // fresh thread for this game's move bubbles
                 self.displayState = pv.displayState(localID: self.localID(c))
                 self.render(for: c) // host now plays P1; their first move sends the game bubble
             } catch { self.serverError = "\(error)"; self.render(for: c) }
@@ -326,8 +339,11 @@ class MessagesViewController: MSMessagesAppViewController {
         let state = displayState ?? freshLocal(c)
         let id = localID(c)
         let enforce = AppConfig.useServer ? true : !c.remoteParticipantIdentifiers.isEmpty
+        // Server mode: you may act ONLY if the server gave you the seat that's
+        // current. No open-seat fallback (that's offline pass-the-phone only) —
+        // otherwise every spectator/non-current player sees "your turn".
         let canActNow: Bool = AppConfig.useServer
-            ? Game.canAct(state, participantID: id)
+            ? (!Game.isGameOver(state) && Game.assignedIndex(state, participantID: id) == state.currentPlayer)
             : (enforce ? Game.canAct(state, participantID: id) : !Game.isGameOver(state))
 
         let view = GameView(
@@ -346,10 +362,13 @@ class MessagesViewController: MSMessagesAppViewController {
     // MARK: Messaging
 
     private func stage(_ state: GameState, url: URL, in c: MSConversation) {
-        // Fresh session per bubble (NOT a reused one): updating an existing session
-        // makes MSMessage.url arrive nil on the recipient. A new session each time
-        // posts an independent bubble that reliably carries the gameId in its url.
-        let message = MSMessage(session: MSSession())
+        // In-game moves share one session so they collapse into a single evolving
+        // thread (old turns shrink to compact). Adopt the session of the game bubble
+        // we're responding to so it stays one thread across devices. The url is
+        // stripped on these collapsed updates — turn handoff resumes via recall.
+        let s = gameSession ?? c.selectedMessage?.session ?? MSSession()
+        gameSession = s
+        let message = MSMessage(session: s)
         let layout = MSMessageTemplateLayout()
         let (caption, sub) = captionPair(state)
         layout.image = BoardSnapshot.render(state, caption: sub)
