@@ -9,7 +9,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { Redis } from "@upstash/redis";
 import {
-  createGame, createLobby, getView, joinLobby, setReady, startLobby, submitMove,
+  createGame, createLobby, getView, joinLobby, leaveLobby, setReady, startLobby, submitMove,
   MemoryStore, type Room, type Store,
 } from "../src/server.ts";
 
@@ -88,6 +88,11 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && action === "ready") {
       const b = await readBody(req);
       send(res, 200, await setReady(store, b.gameId, b.participantId, !!b.ready, b.name));
+      return;
+    }
+    if (req.method === "POST" && action === "leave") {
+      const b = await readBody(req);
+      send(res, 200, await leaveLobby(store, b.gameId, b.participantId));
       return;
     }
     if (req.method === "POST" && action === "start") {

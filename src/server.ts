@@ -94,6 +94,16 @@ export async function setReady(store: Store, gameId: string, participantId: stri
   return lobbyViewFor(lobby, participantId);
 }
 
+export async function leaveLobby(store: Store, gameId: string, participantId: string): Promise<LobbyView> {
+  const lobby = await loadLobby(store, gameId);
+  const i = lobby.members.findIndex((m) => m.id === participantId);
+  if (i !== -1) lobby.members.splice(i, 1);
+  // If the host left, the next remaining member inherits hosting.
+  if (lobby.members.length > 0) lobby.hostId = lobby.members[0].id;
+  await store.set(gameId, { kind: "lobby", lobby });
+  return lobbyViewFor(lobby, participantId);
+}
+
 export async function startLobby(store: Store, gameId: string, participantId: string): Promise<PlayerView> {
   const lobby = await loadLobby(store, gameId);
   if (participantId !== lobby.hostId) throw new BadState("only the host can start");

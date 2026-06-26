@@ -9,6 +9,7 @@ struct LobbyScreen: View {
     let onRefresh: () -> Void
     let onInvite: () -> Void
     let onSetName: (String) -> Void
+    var onLeave: () -> Void = {}
     let onExpand: () -> Void
 
     @AppStorage("playerName") private var playerName = ""
@@ -77,6 +78,11 @@ struct LobbyScreen: View {
                 } else {
                     Text("Waiting for the host to start… (tap refresh to update)")
                         .font(.sans(12)).foregroundStyle(Palette.sepia).multilineTextAlignment(.center)
+                }
+
+                if lobby.you != nil {
+                    Button(action: onLeave) { Label("Quit Game", systemImage: "rectangle.portrait.and.arrow.right") }
+                        .buttonStyle(QuietButtonStyle(tint: Palette.danger))
                 }
             }
             .padding(18)

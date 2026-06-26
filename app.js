@@ -6041,6 +6041,14 @@ async function setReady(store2, gameId, participantId, ready, name) {
   await store2.set(gameId, { kind: "lobby", lobby });
   return lobbyViewFor(lobby, participantId);
 }
+async function leaveLobby(store2, gameId, participantId) {
+  const lobby = await loadLobby(store2, gameId);
+  const i = lobby.members.findIndex((m) => m.id === participantId);
+  if (i !== -1) lobby.members.splice(i, 1);
+  if (lobby.members.length > 0) lobby.hostId = lobby.members[0].id;
+  await store2.set(gameId, { kind: "lobby", lobby });
+  return lobbyViewFor(lobby, participantId);
+}
 async function startLobby(store2, gameId, participantId) {
   const lobby = await loadLobby(store2, gameId);
   if (participantId !== lobby.hostId) throw new BadState("only the host can start");
@@ -6155,6 +6163,11 @@ var server = createServer(async (req, res) => {
     if (req.method === "POST" && action === "ready") {
       const b = await readBody(req);
       send(res, 200, await setReady(store, b.gameId, b.participantId, !!b.ready, b.name));
+      return;
+    }
+    if (req.method === "POST" && action === "leave") {
+      const b = await readBody(req);
+      send(res, 200, await leaveLobby(store, b.gameId, b.participantId));
       return;
     }
     if (req.method === "POST" && action === "start") {
