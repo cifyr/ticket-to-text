@@ -14,3 +14,4 @@ node_modules/
 .archive/
 .DS_Store
 .vercel
+build-verify/

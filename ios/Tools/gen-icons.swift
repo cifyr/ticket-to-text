@@ -4,8 +4,7 @@ import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
 
-let stickers = CommandLine.arguments[1]   // iMessage App Icon.stickersiconset dir
-let appicon = CommandLine.arguments[2]    // AppIcon.appiconset dir
+let stickers = CommandLine.arguments[1]   // iMessage App Icon.stickersiconset dir (in the extension target)
 
 func color(_ hex: Int) -> CGColor {
     CGColor(red: CGFloat((hex >> 16) & 0xFF) / 255,
@@ -169,5 +168,4 @@ let messages: [(String, Int, Int)] = [
     ("icon-1024x768.png", 1024, 768),
 ]
 for (name, w, h) in messages { render(w, h, to: "\(stickers)/\(name)") }
-render(1024, 1024, to: "\(appicon)/appicon-1024.png")
-print("generated \(messages.count + 1) icons")
+print("generated \(messages.count) icons")
