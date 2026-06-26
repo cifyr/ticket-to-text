@@ -13,6 +13,7 @@ struct LobbyScreen: View {
     let onExpand: () -> Void
 
     @AppStorage("playerName") private var playerName = ""
+    @State private var showHelp = false
 
     private var amHost: Bool { lobby.you == 0 }
     private var meReady: Bool { if let y = lobby.you { return lobby.members[y].ready } else { return false } }
@@ -22,6 +23,7 @@ struct LobbyScreen: View {
         Group { if isExpanded { full } else { compact } }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .paper()
+            .sheet(isPresented: $showHelp) { HowToPlayView() }
     }
 
     private var compact: some View {
@@ -91,8 +93,9 @@ struct LobbyScreen: View {
 
     private var header: some View {
         VStack(spacing: 8) {
-            HStack {
+            HStack(spacing: 10) {
                 Spacer()
+                RailIconButton(system: "questionmark") { showHelp = true }
                 RailIconButton(system: "arrow.clockwise", action: onRefresh)
             }
             Text("ALL ABOARD").font(.slab(32, .bold)).tracking(1)

@@ -9,10 +9,13 @@ struct ServerStatusView: View {
     let onNewGame: () -> Void
     let onExpand: () -> Void
 
+    @State private var showHelp = false
+
     var body: some View {
         Group { if isExpanded { expanded } else { compact } }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .paper()
+            .sheet(isPresented: $showHelp) { HowToPlayView() }
     }
 
     private var compact: some View {
@@ -47,6 +50,12 @@ struct ServerStatusView: View {
             Button(action: onNewGame) { Label("Start a New Game", systemImage: "play.fill") }
                 .buttonStyle(BrassButtonStyle())
                 .padding(.horizontal, 30)
+            Button { showHelp = true } label: {
+                Label("How to Play", systemImage: "questionmark.circle.fill")
+                    .font(.slab(16, .bold))
+            }
+            .buttonStyle(QuietButtonStyle())
+            .padding(.horizontal, 30)
         }
         .padding(24)
     }

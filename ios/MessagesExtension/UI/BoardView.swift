@@ -240,6 +240,31 @@ enum BoardGeometry {
         GameMap.cities.map { point($0.x, $0.y, in: size) }
     }
 
+    // Faint continent silhouette behind the routes so the board reads as a map.
+    // Points are in the same normalized city space, so it aligns with the cities
+    // and scales/pans with the board. Clockwise from the Pacific Northwest.
+    private static let landOutline: [(Double, Double)] = [
+        (0.03, 0.05), (0.18, 0.02), (0.42, 0.015), (0.56, 0.05),
+        (0.60, 0.11), (0.66, 0.17), (0.70, 0.11), (0.76, 0.07),
+        (0.83, 0.04), (0.92, 0.09), (0.985, 0.13), (0.93, 0.20),
+        (0.895, 0.28), (0.865, 0.38), (0.87, 0.44), (0.89, 0.52),
+        (0.905, 0.61), (0.872, 0.70), (0.83, 0.60), (0.80, 0.53),
+        (0.66, 0.61), (0.55, 0.64), (0.47, 0.61), (0.43, 0.57),
+        (0.35, 0.585), (0.31, 0.55), (0.21, 0.555), (0.12, 0.545),
+        (0.06, 0.46), (0.025, 0.40), (0.045, 0.30), (0.05, 0.22), (0.05, 0.14),
+    ]
+
+    static func drawLandmass(in ctx: GraphicsContext, size: CGSize) {
+        var path = Path()
+        for (i, c) in landOutline.enumerated() {
+            let p = point(c.0, c.1, in: size)
+            if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+        }
+        path.closeSubpath()
+        ctx.fill(path, with: .color(Color(hex: 0x8AA06A).opacity(0.18)))        // faint land
+        ctx.stroke(path, with: .color(Palette.sepia.opacity(0.30)), lineWidth: 1.3) // coastline
+    }
+
     static func draw(_ state: GameState,
                      in ctx: GraphicsContext,
                      points: [CGPoint],
@@ -250,6 +275,7 @@ enum BoardGeometry {
                      style: BoardStyle,
                      focusedOwner: Int?,
                      highlightClaimable: (Route) -> Bool) {
+        drawLandmass(in: ctx, size: size)
         for route in state.routes {
             let a = points[route.cityA], b = points[route.cityB]
             let owner = route.claimedBy
