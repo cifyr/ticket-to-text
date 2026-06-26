@@ -32,6 +32,7 @@ enum Palette {
     static let hairline      = Color(hex: 0x6E5C49, alpha: 0.30)
     static let brassHair     = Color(hex: 0xC8932B, alpha: 0.45)
     static let routeHot       = Color(hex: 0xFF6A1A) // most-recent claim / destination line
+    static let routeOpen      = Color(hex: 0xC8B284) // light gold/tan for unclaimed routes
     static let activeRing     = Color(hex: 0xFFD21E) // bright ring around the player whose turn it is
 
     // Enamel train-car colors (also used as player/owner colors).
