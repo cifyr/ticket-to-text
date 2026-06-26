@@ -7,7 +7,7 @@ import UIKit
 enum BoardSnapshot {
     @MainActor
     static func render(_ state: GameState, caption: String,
-                       size: CGSize = CGSize(width: 360, height: 430)) -> UIImage {
+                       size: CGSize = CGSize(width: 360, height: 320)) -> UIImage {
         let renderer = ImageRenderer(content:
             MoveRecapImage(state: state, caption: caption).frame(width: size.width, height: size.height))
         renderer.scale = UIScreen.main.scale
