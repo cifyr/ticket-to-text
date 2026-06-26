@@ -4,8 +4,8 @@ import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
 
-let stickers = CommandLine.arguments[1]   // iMessage App Icon.stickersiconset dir
-let appicon = CommandLine.arguments[2]    // AppIcon.appiconset dir
+let stickers = CommandLine.arguments[1]   // iMessage App Icon.stickersiconset dir (in the extension target)
+let appicon = CommandLine.arguments[2]    // AppIcon.appiconset dir (host app — supplies CFBundleIconName)
 
 func color(_ hex: Int) -> CGColor {
     CGColor(red: CGFloat((hex >> 16) & 0xFF) / 255,

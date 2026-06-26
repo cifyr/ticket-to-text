@@ -1,28 +1,65 @@
 # TicketToText — project notes
 
+## Standalone iMessage app structure (required for App Store / TestFlight)
+
+The app ships as a **standalone iMessage application**: an icon-less,
+launch-prohibited host whose only job is to carry the Messages extension. Getting
+this wrong causes upload rejections **ITMS-90602** and **ITMS-90633** ("Invalid
+Messages Application Support — MessagesApplicationSupport/MessagesApplicationStub
+is missing while LSApplicationLaunchProhibited is true"). Hiding the home icon
+with `LSApplicationLaunchProhibited` is only legal when the host is a real
+messages-app stub; a normal app + the key is rejected.
+
+What makes it a proper stub (all in `project.yml`, applied by `npm run ios:gen`):
+
+- Host target `TicketToText` uses **`type: application.messages`** (product type
+  `com.apple.product-type.application.messages`). That sets
+  `PRODUCT_TYPE_HAS_STUB_BINARY=YES`, so Xcode uses Apple's
+  `MessagesApplicationStub` as the app's main binary and adds the
+  `MessagesApplicationSupport/MessagesApplicationStub` to the IPA at export time.
+  Plain `application` does NOT do this — that was the original rejection.
+- Host has **no source code** (the old `ios/App/TicketToTextApp.swift` is
+  archived). A messages-app target must not compile its own executable.
+- TWO icons, matching Apple's template: the **host** has a regular `AppIcon`
+  asset catalog (`ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon`) — this supplies
+  `CFBundleIconName`, without which the upload fails **ITMS-90713**. The
+  **extension** keeps the **iMessage App Icon** (`ASSETCATALOG_COMPILER_APPICON_NAME
+  = "iMessage App Icon"`), the icon shown in the Messages drawer/store. Do NOT put
+  the iMessage icon on the host — actool then mis-compiles it as a regular app icon.
+- Because we use a hand-written `Info.plist` with `GENERATE_INFOPLIST_FILE=NO`,
+  actool only writes the nested `CFBundleIcons` dict, not the **top-level**
+  `CFBundleIconName` string that App Store validation checks. So `ios/App/Info.plist`
+  sets `CFBundleIconName = AppIcon` explicitly (else ITMS-90713 even with the icon).
+- Host needs an explicit scheme (`scheme:` block) because xcodegen no longer
+  auto-generates one for the messages-app product type.
+- `LSApplicationLaunchProhibited = true` stays in `ios/App/Info.plist` (now valid,
+  because the stub is present → no home-screen icon).
+
+Verify locally before any upload (no signing needed):
+```
+npm run ios:gen
+xcodebuild -project TicketToText.xcodeproj -scheme TicketToText -configuration Release \
+  -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build-verify \
+  CODE_SIGNING_ALLOWED=NO build
+# Host .app should contain a ~68KB Mach-O stub named TicketToText (file <app>/TicketToText
+# => "Mach-O 64-bit executable arm64"), Info.plist, PlugIns, and NO loose icon PNGs.
+# Extension's Assets.car should list "iMessage App Icon".
+```
+
 ## Distribution via TestFlight (paid Apple Developer account)
 
-Moving off free Personal Team signing removes the 7-day expiry and the
-white-screen trust problem entirely: TestFlight builds are trusted
-automatically, so `LSApplicationLaunchProhibited` (the no-home-icon hack) works
-fine and the extension launches without a manual trust step.
+TestFlight builds are trusted automatically, so there's no 7-day expiry and no
+device trust step (unlike free signing — see the white-screen section below).
 
-Bundle IDs stay `com.cadenwarren.tickettotext` and
-`com.cadenwarren.tickettotext.MessagesExtension` (registered under the new
-account — a bundle ID's reverse-domain prefix does not have to match the team).
+This repo is wired for the paid account: `DEVELOPMENT_TEAM` and the
+`com.sachinsagrawal.*` bundle IDs are set in `project.yml`. The account owner:
 
-Setup steps for the account owner (no repo changes required; signing is handled
-in Xcode):
-
-1. Register both App IDs in the Apple Developer portal (the MessagesExtension ID
-   needs the Messages capability), then create the App Store Connect app record.
-2. Open the project, set the **Team** to theirs on both the `TicketToText` and
-   `MessagesExtension` targets. Code signing is Automatic, so Xcode generates the
-   profiles. (To build from this repo instead, override `DEVELOPMENT_TEAM` in
-   `project.yml` / via an xcconfig rather than committing a new team ID.)
-3. **Archive** a Release build (Xcode > Product > Archive — not the debug device
-   build used elsewhere in these notes) and upload to App Store Connect.
-4. Enable TestFlight, add testers or turn on the public invite link, and share.
+1. Register both App IDs (the MessagesExtension ID needs the Messages
+   capability) and create the App Store Connect app record.
+2. `npm run ios:gen` to regenerate `TicketToText.xcodeproj` (it's gitignored).
+3. **Archive** the `TicketToText` scheme (Release) and upload to App Store Connect.
+4. Answer the export-compliance question (No — only standard HTTPS), then enable
+   TestFlight and add testers / turn on the public invite link.
 
 ### Who can play / what a non-tester sees
 The game is turn-based and server-authoritative, so every player needs the app

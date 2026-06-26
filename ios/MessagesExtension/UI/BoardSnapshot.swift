@@ -15,6 +15,40 @@ enum BoardSnapshot {
     }
 }
 
+// Image for the lobby invite bubble. Image-less MSMessages render inconsistently,
+// so the invite carries a simple branded card like the game bubble does.
+enum LobbySnapshot {
+    @MainActor
+    static func render(joined: Int, max: Int, ready: Int,
+                       size: CGSize = CGSize(width: 360, height: 200)) -> UIImage {
+        let renderer = ImageRenderer(content:
+            LobbyInviteImage(joined: joined, max: max, ready: ready)
+                .frame(width: size.width, height: size.height))
+        renderer.scale = UIScreen.main.scale
+        return renderer.uiImage ?? UIImage()
+    }
+}
+
+private struct LobbyInviteImage: View {
+    let joined: Int, max: Int, ready: Int
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "train.side.front.car")
+                .font(.system(size: 44)).foregroundStyle(Palette.brass)
+            Text("ALL ABOARD").font(.system(size: 26, weight: .bold, design: .serif))
+                .foregroundStyle(Palette.ink).tracking(1)
+            Text("\(joined)/\(max) joined · \(ready) ready")
+                .font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.sepia)
+            Text("Tap to join the game").font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16).padding(.vertical, 7)
+                .background(Capsule().fill(Palette.brass))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Palette.parchment)
+    }
+}
+
 private struct MoveRecapImage: View {
     let state: GameState
     let caption: String

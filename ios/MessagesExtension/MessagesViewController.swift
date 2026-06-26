@@ -14,14 +14,8 @@ class MessagesViewController: MSMessagesAppViewController {
     private var serverError: String?
     private var loading = false
     private var lobby: LobbyView?
-    private var session: MSSession?   // shared so invite -> game is one bubble
     private var pollTask: Task<Void, Never>?
 
-    private func currentSession(_ c: MSConversation) -> MSSession {
-        let s = c.selectedMessage?.session ?? session ?? MSSession()
-        session = s
-        return s
-    }
     private lazy var client = GameClient(baseURL: AppConfig.serverBaseURL, bypassToken: AppConfig.bypassToken)
 
     override func viewDidLoad() {
@@ -57,6 +51,24 @@ class MessagesViewController: MSMessagesAppViewController {
         if let conversation = activeConversation { render(for: conversation) }
     }
 
+    // Fires when the user taps a bubble while the extension is ALREADY active
+    // (willBecomeActive only fires on a cold activation). Each bubble carries its
+    // own gameId, so tapping any game's bubble switches to exactly that game —
+    // this is what lets multiple games coexist in one chat.
+    override func didSelect(_ message: MSMessage, conversation: MSConversation) {
+        super.didSelect(message, conversation: conversation)
+        guard AppConfig.useServer else {
+            if let url = message.url, let state = Serialize.decode(from: url) {
+                displayState = state
+                render(for: conversation)
+            }
+            return
+        }
+        guard let gid = message.url.flatMap({ gameId(from: $0) }) else { return }
+        serverGameId = gid
+        fetchRoom(gid, conversation) // keeps current view visible while it refreshes
+    }
+
     override func willResignActive(with conversation: MSConversation) {
         super.willResignActive(with: conversation)
         stopPolling()
@@ -88,22 +100,20 @@ class MessagesViewController: MSMessagesAppViewController {
 
     // MARK: Identity / settings
 
-    private func localID(_ c: MSConversation) -> String { c.localParticipantIdentifier.uuidString }
+    private func localID(_ c: MSConversation) -> String {
+        c.localParticipantIdentifier.uuidString
+    }
     private func localName() -> String? {
         let n = UserDefaults.standard.string(forKey: "playerName")?.trimmingCharacters(in: .whitespaces)
         let name = (n?.isEmpty == false) ? n : nil
         if let name, name != NameStore.load() { NameStore.save(name) } // mirror to keychain
         return name
     }
+
     private func localPlayerCount() -> Int {
         let n = UserDefaults.standard.integer(forKey: "playerCount")
         return n == 0 ? 2 : max(2, min(4, n))
     }
-
-    // Remember the room so the host can reopen their own invite even when
-    // Messages doesn't hand us back a selectedMessage on tap.
-    private func rememberGame(_ gid: String) { UserDefaults.standard.set(gid, forKey: "lastGameId") }
-    private func recallGame() -> String? { UserDefaults.standard.string(forKey: "lastGameId") }
 
     // MARK: Offline (local) mode
 
@@ -138,16 +148,14 @@ class MessagesViewController: MSMessagesAppViewController {
 
     private func loadServer(_ c: MSConversation) {
         serverError = nil
-        // Resolve the game id in priority order: the tapped invite/game bubble,
-        // the room we already hold this session, or — only when the user tapped
-        // one of our bubbles — the last room we persisted (covers the host
-        // reopening their own invite, where Messages leaves selectedMessage nil).
-        // Opening fresh from the app drawer falls through to the start screen.
+        // Each bubble carries its own gameId, so tapping one opens exactly that
+        // game (multiple games can live in one chat). Opening from the app drawer
+        // has no tapped bubble -> fall to the game we already hold this activation,
+        // else the start screen (the drawer is the "new game" entry point).
         let tapped = c.selectedMessage?.url.flatMap { gameId(from: $0) }
-        let gid = tapped ?? serverGameId ?? (c.selectedMessage != nil ? recallGame() : nil)
+        let gid = tapped ?? serverGameId
         if let gid {
             serverGameId = gid
-            rememberGame(gid)
             fetchRoom(gid, c) // keeps any current lobby/game visible while it refreshes
         } else {
             lobby = nil; displayState = nil; serverGameId = nil
@@ -213,7 +221,6 @@ class MessagesViewController: MSMessagesAppViewController {
                 let resp = try await self.client.createLobby(hostId: self.localID(c), hostName: self.localName(),
                                                              maxPlayers: 4)
                 self.serverGameId = resp.gameId
-                self.rememberGame(resp.gameId)
                 self.lobby = resp.view
                 self.displayState = nil
                 self.serverError = nil
@@ -335,8 +342,10 @@ class MessagesViewController: MSMessagesAppViewController {
     // MARK: Messaging
 
     private func stage(_ state: GameState, url: URL, in c: MSConversation) {
-        let s = currentSession(c)
-        let message = MSMessage(session: s)
+        // Fresh session per bubble (NOT a reused one): updating an existing session
+        // makes MSMessage.url arrive nil on the recipient. A new session each time
+        // posts an independent bubble that reliably carries the gameId in its url.
+        let message = MSMessage(session: MSSession())
         let layout = MSMessageTemplateLayout()
         let (caption, sub) = captionPair(state)
         layout.image = BoardSnapshot.render(state, caption: sub)
@@ -350,10 +359,10 @@ class MessagesViewController: MSMessagesAppViewController {
     }
 
     private func stageLobby(_ gid: String, _ lobby: LobbyView, in c: MSConversation) {
-        let s = currentSession(c)
-        let message = MSMessage(session: s)
+        let message = MSMessage(session: MSSession())
         let layout = MSMessageTemplateLayout()
         let ready = lobby.members.filter { $0.ready }.count
+        layout.image = LobbySnapshot.render(joined: lobby.members.count, max: lobby.maxPlayers, ready: ready)
         layout.caption = "Ticket to Text — Lobby"
         layout.subcaption = "\(lobby.members.count)/\(lobby.maxPlayers) joined · \(ready) ready — tap to join"
         message.layout = layout
@@ -379,8 +388,10 @@ class MessagesViewController: MSMessagesAppViewController {
     }
 
     private func gameIdURL(_ gid: String) -> URL {
+        // Query items ONLY (no custom scheme): Messages treats MSMessage.url as an
+        // opaque data carrier and strips unknown custom schemes on delivery, which
+        // made url arrive nil on the recipient. The parser handles both formats.
         var comps = URLComponents()
-        comps.scheme = "tickettotext"; comps.host = "game"
         comps.queryItems = [URLQueryItem(name: "g", value: gid)]
         return comps.url!
     }
