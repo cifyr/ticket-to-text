@@ -20,11 +20,16 @@ What makes it a proper stub (all in `project.yml`, applied by `npm run ios:gen`)
   Plain `application` does NOT do this — that was the original rejection.
 - Host has **no source code** (the old `ios/App/TicketToTextApp.swift` is
   archived). A messages-app target must not compile its own executable.
-- Host has **no asset catalog**. The **iMessage App Icon lives in the EXTENSION**
-  (`ios/MessagesExtension/Assets.xcassets`, `ASSETCATALOG_COMPILER_APPICON_NAME =
-  "iMessage App Icon"`). If the icon is put on the `application.messages` target
-  instead, actool mis-compiles it as a regular iOS app icon (wrong 20/29/40/60pt
-  sizes) — keep it in the extension, where it lands in the extension's Assets.car.
+- TWO icons, matching Apple's template: the **host** has a regular `AppIcon`
+  asset catalog (`ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon`) — this supplies
+  `CFBundleIconName`, without which the upload fails **ITMS-90713**. The
+  **extension** keeps the **iMessage App Icon** (`ASSETCATALOG_COMPILER_APPICON_NAME
+  = "iMessage App Icon"`), the icon shown in the Messages drawer/store. Do NOT put
+  the iMessage icon on the host — actool then mis-compiles it as a regular app icon.
+- Because we use a hand-written `Info.plist` with `GENERATE_INFOPLIST_FILE=NO`,
+  actool only writes the nested `CFBundleIcons` dict, not the **top-level**
+  `CFBundleIconName` string that App Store validation checks. So `ios/App/Info.plist`
+  sets `CFBundleIconName = AppIcon` explicitly (else ITMS-90713 even with the icon).
 - Host needs an explicit scheme (`scheme:` block) because xcodegen no longer
   auto-generates one for the messages-app product type.
 - `LSApplicationLaunchProhibited = true` stays in `ios/App/Info.plist` (now valid,
