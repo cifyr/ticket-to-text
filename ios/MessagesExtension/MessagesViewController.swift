@@ -239,10 +239,14 @@ class MessagesViewController: MSMessagesAppViewController {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                // Ready is server-only (no message sent) and also joins you.
-                self.lobby = try await self.client.ready(gameId: gid, participantId: self.localID(c),
-                                                         ready: ready, name: self.localName())
+                // Readying also joins you. On becoming ready, post a fresh lobby
+                // bubble so the host is notified even if they closed Messages — it's
+                // a full invite (carries the gameId) so tapping it reopens the lobby.
+                let lv = try await self.client.ready(gameId: gid, participantId: self.localID(c),
+                                                     ready: ready, name: self.localName())
+                self.lobby = lv
                 self.render(for: c)
+                if ready { self.stageLobby(gid, lv, in: c) }
             } catch { self.serverError = "\(error)"; self.render(for: c) }
         }
     }

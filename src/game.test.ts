@@ -91,7 +91,7 @@ test("taking a face-up locomotive uses the whole turn (cannot pair with another 
 
 test("claim: locomotives substitute for color, cards go to discard, score uses TTR table", () => {
   const s = make({
-    routes: [openRoute({ id: 0, length: 3, color: "red" }), openRoute({ id: 1, color: "blue" })],
+    routes: [openRoute({ id: 0, length: 3, color: "red" }), openRoute({ id: 1, cityA: 1, cityB: 2, color: "blue" })],
     players: [P({ hand: ["red", "red", "locomotive", "green"] }), P()],
     deck: ["white"],
   });
@@ -148,7 +148,7 @@ test("draw tickets: pending choice, keep >= 1, rest go to bottom, then turn pass
 
 test("running low on trains triggers a final round, then the game ends", () => {
   const s = make({
-    routes: [openRoute({ id: 0, length: 3, color: "red" }), openRoute({ id: 1, color: "blue" })],
+    routes: [openRoute({ id: 0, length: 3, color: "red" }), openRoute({ id: 1, cityA: 1, cityB: 2, color: "blue" })],
     players: [P({ hand: ["red", "red", "red"], trains: 4 }), P()],
     deck: Array.from({ length: 12 }, () => "white") as Card[],
     market: ["red", "blue", "green", "yellow", "orange"],
@@ -222,7 +222,7 @@ test("turn identity: starter owns seat 0, others blocked out of turn", () => {
 
 test("moves record a log entry, last-move summary, and claimed route id", () => {
   const s = make({
-    routes: [openRoute({ id: 0, length: 3, color: "red" }), openRoute({ id: 1, color: "blue" })],
+    routes: [openRoute({ id: 0, length: 3, color: "red" }), openRoute({ id: 1, cityA: 1, cityB: 2, color: "blue" })],
     players: [P({ hand: ["red", "red", "red"] }), P()],
     deck: ["white"],
   });
@@ -326,7 +326,7 @@ test("4-player final round gives each remaining player one last turn", () => {
   const four = [P({ hand: ["red", "red", "red"], trains: 4 }), P(), P(), P()];
   const s = make({
     players: four,
-    routes: [openRoute({ id: 0, length: 3, color: "red" }), openRoute({ id: 1, color: "blue" })],
+    routes: [openRoute({ id: 0, length: 3, color: "red" }), openRoute({ id: 1, cityA: 1, cityB: 2, color: "blue" })],
     deck: Array.from({ length: 20 }, () => "white") as Card[],
     market: ["red", "blue", "green", "yellow", "orange"],
     playerIDs: [null, null, null, null],
@@ -341,6 +341,25 @@ test("4-player final round gives each remaining player one last turn", () => {
   }
   g = applyMove(g, { kind: "drawCards", picks: [{ from: "blind" }] }); // P0's final turn
   assert.equal(g.over, true);
+});
+
+test("double route: claiming one track locks the parallel one", () => {
+  const s = make({
+    players: [P({ hand: ["red", "red", "blue", "blue"], trains: 20 }), P({ hand: ["blue", "blue", "blue"], trains: 20 })],
+    routes: [
+      openRoute({ id: 0, cityA: 0, cityB: 1, length: 2, color: "red" }),
+      openRoute({ id: 1, cityA: 0, cityB: 1, length: 2, color: "blue" }), // parallel track
+      openRoute({ id: 2, cityA: 2, cityB: 3, length: 2, color: "gray" }),
+    ],
+    deck: Array.from({ length: 20 }, () => "white") as Card[],
+    market: ["red", "blue", "green", "yellow", "orange"],
+    playerIDs: [null, null],
+    playerNames: [null, null],
+  });
+  const g = applyMove(s, { kind: "claim", routeId: 0 }); // P0 takes the red track
+  const sibling = g.routes.find((r) => r.id === 1)!;
+  assert.equal(canClaim(g, sibling, 1), false); // P1 can't take the parallel blue track
+  assert.throws(() => applyMove(g, { kind: "claim", routeId: 1 }), /parallel route/);
 });
 
 test("equal totals are a tie (no winner)", () => {

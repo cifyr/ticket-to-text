@@ -110,8 +110,18 @@ function bestGrayColor(hand: Card[]): RouteColor {
   return best;
 }
 
+// A double route's parallel track: same city pair, different id. Only one of a
+// pair may ever be claimed, so a claimed sibling locks the other.
+export function siblingClaimed(state: GameState, route: Route): boolean {
+  return state.routes.some((r) =>
+    r.id !== route.id && r.claimedBy !== null &&
+    ((r.cityA === route.cityA && r.cityB === route.cityB) ||
+     (r.cityA === route.cityB && r.cityB === route.cityA)));
+}
+
 export function canClaim(state: GameState, route: Route, player: number): boolean {
   if (route.claimedBy !== null) return false;
+  if (siblingClaimed(state, route)) return false;
   const p = state.players[player];
   if (p.trains < route.length) return false;
   const loco = locoCount(p.hand);
@@ -134,6 +144,7 @@ function applyClaim(state: GameState, routeId: number, chosen?: RouteColor): Rou
   const route = state.routes.find((r) => r.id === routeId);
   if (!route) throw new IllegalMoveError(`no route with id ${routeId}`);
   if (route.claimedBy !== null) throw new IllegalMoveError(`route ${routeId} already claimed`);
+  if (siblingClaimed(state, route)) throw new IllegalMoveError(`parallel route to ${routeId} already claimed`);
   if (state.players[p].trains < route.length) throw new IllegalMoveError("not enough trains");
 
   const payColor = payColorFor(state, route, p, chosen);
@@ -212,7 +223,9 @@ function applyKeepTickets(state: GameState, keep: number[]): number {
 }
 
 function endOfTurn(state: GameState): void {
-  if (state.routes.every((r) => r.claimedBy !== null)) {
+  // With double routes one of each pair stays null forever, so "all claimed"
+  // means every route is either claimed or blocked by a claimed sibling.
+  if (state.routes.every((r) => r.claimedBy !== null || siblingClaimed(state, r))) {
     state.over = true;
     return;
   }

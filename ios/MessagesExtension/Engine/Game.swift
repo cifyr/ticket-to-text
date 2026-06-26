@@ -86,8 +86,19 @@ enum Game {
         Card(rawValue: paint.rawValue)
     }
 
+    // A double route's parallel track: same city pair, different id. Only one of
+    // a pair may ever be claimed, so a claimed sibling locks the other.
+    static func siblingClaimed(_ state: GameState, _ route: Route) -> Bool {
+        state.routes.contains { r in
+            r.id != route.id && r.claimedBy != nil &&
+            ((r.cityA == route.cityA && r.cityB == route.cityB) ||
+             (r.cityA == route.cityB && r.cityB == route.cityA))
+        }
+    }
+
     static func canClaim(_ state: GameState, _ route: Route, player: Int) -> Bool {
         guard route.claimedBy == nil else { return false }
+        guard !siblingClaimed(state, route) else { return false }
         let p = state.players[player]
         guard p.trains >= route.length else { return false }
         let loco = locoCount(p.hand)
@@ -114,6 +125,7 @@ enum Game {
         }
         let route = state.routes[idx]
         guard route.claimedBy == nil else { throw IllegalMoveError(message: "route \(routeId) already claimed") }
+        guard !siblingClaimed(state, route) else { throw IllegalMoveError(message: "parallel route to \(routeId) already claimed") }
         guard state.players[p].trains >= route.length else { throw IllegalMoveError(message: "not enough trains") }
 
         let payColor = payColorFor(state, route, player: p, chosen: chosen)
@@ -199,7 +211,10 @@ enum Game {
     }
 
     private static func endOfTurn(_ state: inout GameState) {
-        if state.routes.allSatisfy({ $0.claimedBy != nil }) { state.over = true; return }
+        // With double routes one of each pair stays nil forever, so "all claimed"
+        // means every route is claimed or blocked by a claimed sibling.
+        let s = state
+        if state.routes.allSatisfy({ $0.claimedBy != nil || siblingClaimed(s, $0) }) { state.over = true; return }
         if state.finalTurnsLeft == nil {
             if state.players[state.currentPlayer].trains <= finalTrainThreshold {
                 state.finalTurnsLeft = state.players.count // each player, incl. this one, gets one final turn
@@ -282,7 +297,7 @@ enum Game {
     }
 
     static func isGameOver(_ state: GameState) -> Bool {
-        state.over || state.routes.allSatisfy { $0.claimedBy != nil } || legalMoves(state).isEmpty
+        state.over || state.routes.allSatisfy { $0.claimedBy != nil || siblingClaimed(state, $0) } || legalMoves(state).isEmpty
     }
 
     // MARK: Turn identity
