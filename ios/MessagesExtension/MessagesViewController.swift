@@ -208,11 +208,14 @@ class MessagesViewController: MSMessagesAppViewController {
                     // Turn isn't over yet — show the keep/discard chooser, don't post.
                     self.render(for: c)
                 case .drawCards:
-                    // Let the player privately see what they drew, then post.
+                    // Let the player privately see what they drew, then post. Freeze
+                    // the board now so switching to another game's bubble in the 1.7s
+                    // window can't post the wrong board (or stage it under this gid).
                     self.render(for: c)
+                    let snapshot = self.displayState
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.7) { [weak self] in
-                        guard let self, let ds = self.displayState else { return }
-                        self.stage(ds, url: self.gameIdURL(gid), in: c)
+                        guard let self, self.serverGameId == gid, let snapshot else { return }
+                        self.stage(snapshot, url: self.gameIdURL(gid), in: c)
                     }
                 default: // claim, keepTickets — the turn is done, post now
                     self.stage(self.displayState!, url: self.gameIdURL(gid), in: c)

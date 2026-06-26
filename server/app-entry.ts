@@ -13,6 +13,8 @@ import {
   MemoryStore, type Room, type Store,
 } from "../src/server.ts";
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 // Durable store: each room (lobby or game) persists under `game:<id>` so
 // concurrent games survive across serverless instances. Falls back to in-memory
 // until Upstash env vars are present (set when you connect the integration).
@@ -24,6 +26,45 @@ class RedisStore implements Store {
   async set(id: string, room: Room): Promise<void> {
     await this.redis.set(`game:${id}`, room, { ex: 60 * 60 * 24 * 7 }); // 7-day TTL
   }
+
+  // Upstash REST is stateless, so WATCH/MULTI isn't viable; use a short-lived
+  // per-game lock (SET NX PX) instead. Two players readying or moving at once
+  // would otherwise read-then-write the same room and lose one update.
+  async update(id: string, mutate: (room: Room | undefined) => Room): Promise<Room> {
+    const lockKey = `lock:${id}`;
+    const token = cryptoToken();
+    const acquired = await this.acquire(lockKey, token);
+    if (!acquired) throw new BadStateBusy(id);
+    try {
+      const next = mutate(await this.get(id)); // throws before write on validation errors
+      await this.set(id, next);
+      return next;
+    } finally {
+      // Compare-and-delete so we only release a lock we still own (best-effort).
+      const release = `if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end`;
+      try { await this.redis.eval(release, [lockKey], [token]); } catch { /* lock TTL will clear it */ }
+    }
+  }
+
+  private async acquire(lockKey: string, token: string): Promise<boolean> {
+    for (let attempt = 0; attempt < 40; attempt++) { // ~4s ceiling; lock held only for one get+set
+      const ok = await this.redis.set(lockKey, token, { nx: true, px: 5000 });
+      if (ok === "OK") return true;
+      await sleep(100);
+    }
+    return false;
+  }
+}
+
+// Signals lock contention that outlived the retry window — surfaced as a 409 so
+// the client can retry (lobby polling re-fetches; a move can be re-sent).
+class BadStateBusy extends Error {
+  constructor(id: string) { super(`game ${id} is busy, try again`); this.name = "BadStateBusy"; }
+}
+
+function cryptoToken(): string {
+  const g = globalThis as { crypto?: { randomUUID?: () => string } };
+  return g.crypto?.randomUUID ? g.crypto.randomUUID() : Math.random().toString(36).slice(2);
 }
 
 function makeStore(): Store {
@@ -103,7 +144,7 @@ const server = createServer(async (req, res) => {
     send(res, 400, { error: "unknown action" });
   } catch (e: any) {
     const msg = e?.message ?? String(e);
-    const conflict = /not your turn|not found|not started|host|ready|already started|2 players/.test(msg);
+    const conflict = /not your turn|not found|not started|host|ready|already started|2 players|busy/.test(msg);
     send(res, conflict ? 409 : 400, { error: msg });
   }
 });

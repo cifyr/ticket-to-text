@@ -6040,6 +6040,12 @@ var MemoryStore = class {
   set(id, room) {
     this.m.set(id, room);
   }
+  // The whole read-mutate-write runs synchronously, so nothing can interleave.
+  async update(id, mutate) {
+    const next = mutate(this.m.get(id));
+    this.m.set(id, next);
+    return next;
+  }
 };
 var GameNotFound = class extends Error {
   constructor(id) {
@@ -6077,56 +6083,65 @@ async function createLobby(store2, opts) {
   await store2.set(gameId, { kind: "lobby", lobby });
   return { gameId, view: lobbyViewFor(lobby, opts.hostId) };
 }
-async function loadLobby(store2, gameId) {
-  const room = await store2.get(gameId);
+function lobbyOf(room, gameId) {
   if (!room) throw new GameNotFound(gameId);
   if (room.kind !== "lobby") throw new BadState("game already started");
   return room.lobby;
 }
 async function joinLobby(store2, gameId, participantId, name) {
-  const lobby = await loadLobby(store2, gameId);
-  const existing = lobby.members.find((m) => m.id === participantId);
-  if (existing) {
-    if (name) existing.name = name;
-  } else if (lobby.members.length < lobby.maxPlayers) {
-    lobby.members.push({ id: participantId, name: name ?? null, ready: false });
-  }
-  await store2.set(gameId, { kind: "lobby", lobby });
-  return lobbyViewFor(lobby, participantId);
+  const room = await store2.update(gameId, (room2) => {
+    const lobby = lobbyOf(room2, gameId);
+    const existing = lobby.members.find((m) => m.id === participantId);
+    if (existing) {
+      if (name) existing.name = name;
+    } else if (lobby.members.length < lobby.maxPlayers) {
+      lobby.members.push({ id: participantId, name: name ?? null, ready: false });
+    }
+    return { kind: "lobby", lobby };
+  });
+  return lobbyViewFor(lobbyOf(room, gameId), participantId);
 }
 async function setReady(store2, gameId, participantId, ready, name) {
-  const lobby = await loadLobby(store2, gameId);
-  let me = lobby.members.find((m) => m.id === participantId);
-  if (!me) {
-    if (lobby.members.length >= lobby.maxPlayers) throw new BadState("lobby is full");
-    me = { id: participantId, name: name ?? null, ready: false };
-    lobby.members.push(me);
-  }
-  if (name) me.name = name;
-  me.ready = ready;
-  await store2.set(gameId, { kind: "lobby", lobby });
-  return lobbyViewFor(lobby, participantId);
+  const room = await store2.update(gameId, (room2) => {
+    const lobby = lobbyOf(room2, gameId);
+    let me = lobby.members.find((m) => m.id === participantId);
+    if (!me) {
+      if (lobby.members.length >= lobby.maxPlayers) throw new BadState("lobby is full");
+      me = { id: participantId, name: name ?? null, ready: false };
+      lobby.members.push(me);
+    }
+    if (name) me.name = name;
+    me.ready = ready;
+    return { kind: "lobby", lobby };
+  });
+  return lobbyViewFor(lobbyOf(room, gameId), participantId);
 }
 async function leaveLobby(store2, gameId, participantId) {
-  const lobby = await loadLobby(store2, gameId);
-  const i = lobby.members.findIndex((m) => m.id === participantId);
-  if (i !== -1) lobby.members.splice(i, 1);
-  if (lobby.members.length > 0) lobby.hostId = lobby.members[0].id;
-  await store2.set(gameId, { kind: "lobby", lobby });
-  return lobbyViewFor(lobby, participantId);
+  const room = await store2.update(gameId, (room2) => {
+    const lobby = lobbyOf(room2, gameId);
+    const i = lobby.members.findIndex((m) => m.id === participantId);
+    if (i !== -1) lobby.members.splice(i, 1);
+    if (lobby.members.length > 0) lobby.hostId = lobby.members[0].id;
+    return { kind: "lobby", lobby };
+  });
+  return lobbyViewFor(lobbyOf(room, gameId), participantId);
 }
 async function startLobby(store2, gameId, participantId) {
-  const lobby = await loadLobby(store2, gameId);
-  if (participantId !== lobby.hostId) throw new BadState("only the host can start");
-  const ready = lobby.members.filter((m) => m.ready);
-  if (ready.length < 2) throw new BadState("need at least 2 ready players");
-  const game = newGame(lobby.seed, ready.length);
-  ready.forEach((m, i) => {
-    game.playerIDs[i] = m.id;
-    game.playerNames[i] = m.name;
+  const room = await store2.update(gameId, (room2) => {
+    const lobby = lobbyOf(room2, gameId);
+    if (participantId !== lobby.hostId) throw new BadState("only the host can start");
+    const ready = lobby.members.filter((m) => m.ready);
+    if (ready.length < 2) throw new BadState("need at least 2 ready players");
+    if (!ready.some((m) => m.id === lobby.hostId)) throw new BadState("host must be ready to start");
+    const game = newGame(lobby.seed, ready.length);
+    ready.forEach((m, i) => {
+      game.playerIDs[i] = m.id;
+      game.playerNames[i] = m.name;
+    });
+    return { kind: "game", game };
   });
-  await store2.set(gameId, { kind: "game", game });
-  return redactFor(game, assignedIndex(game, participantId));
+  if (room.kind !== "game") throw new BadState("game has not started");
+  return redactFor(room.game, assignedIndex(room.game, participantId));
 }
 async function createGame(store2, opts) {
   const seed = opts.seed ?? Math.floor(Math.random() * 4294967295);
@@ -6144,17 +6159,20 @@ async function getView(store2, gameId, participantId) {
   return redactFor(room.game, assignedIndex(room.game, participantId));
 }
 async function submitMove(store2, gameId, participantId, move, name) {
-  const room = await store2.get(gameId);
-  if (!room) throw new GameNotFound(gameId);
+  const room = await store2.update(gameId, (room2) => {
+    if (!room2) throw new GameNotFound(gameId);
+    if (room2.kind !== "game") throw new BadState("game has not started");
+    const next = applyMoveBy(room2.game, move, participantId);
+    if (name) next.playerNames[assignedIndex(next, participantId)] = name;
+    return { kind: "game", game: next };
+  });
   if (room.kind !== "game") throw new BadState("game has not started");
-  const next = applyMoveBy(room.game, move, participantId);
-  const seat = assignedIndex(next, participantId);
-  if (name) next.playerNames[seat] = name;
-  await store2.set(gameId, { kind: "game", game: next });
-  return redactFor(next, seat);
+  const seat = assignedIndex(room.game, participantId);
+  return redactFor(room.game, seat);
 }
 
 // server/app-entry.ts
+var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 var RedisStore = class {
   constructor(redis) {
     this.redis = redis;
@@ -6166,7 +6184,45 @@ var RedisStore = class {
   async set(id, room) {
     await this.redis.set(`game:${id}`, room, { ex: 60 * 60 * 24 * 7 });
   }
+  // Upstash REST is stateless, so WATCH/MULTI isn't viable; use a short-lived
+  // per-game lock (SET NX PX) instead. Two players readying or moving at once
+  // would otherwise read-then-write the same room and lose one update.
+  async update(id, mutate) {
+    const lockKey = `lock:${id}`;
+    const token = cryptoToken();
+    const acquired = await this.acquire(lockKey, token);
+    if (!acquired) throw new BadStateBusy(id);
+    try {
+      const next = mutate(await this.get(id));
+      await this.set(id, next);
+      return next;
+    } finally {
+      const release = `if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end`;
+      try {
+        await this.redis.eval(release, [lockKey], [token]);
+      } catch {
+      }
+    }
+  }
+  async acquire(lockKey, token) {
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const ok = await this.redis.set(lockKey, token, { nx: true, px: 5e3 });
+      if (ok === "OK") return true;
+      await sleep(100);
+    }
+    return false;
+  }
 };
+var BadStateBusy = class extends Error {
+  constructor(id) {
+    super(`game ${id} is busy, try again`);
+    this.name = "BadStateBusy";
+  }
+};
+function cryptoToken() {
+  const g = globalThis;
+  return g.crypto?.randomUUID ? g.crypto.randomUUID() : Math.random().toString(36).slice(2);
+}
 function makeStore() {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
@@ -6244,7 +6300,7 @@ var server = createServer(async (req, res) => {
     send(res, 400, { error: "unknown action" });
   } catch (e) {
     const msg = e?.message ?? String(e);
-    const conflict = /not your turn|not found|not started|host|ready|already started|2 players/.test(msg);
+    const conflict = /not your turn|not found|not started|host|ready|already started|2 players|busy/.test(msg);
     send(res, conflict ? 409 : 400, { error: msg });
   }
 });
