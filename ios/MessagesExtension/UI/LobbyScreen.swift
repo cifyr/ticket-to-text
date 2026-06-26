@@ -58,6 +58,11 @@ struct LobbyScreen: View {
                         Label(meReady ? "Ready ✓" : "I'm Ready", systemImage: meReady ? "checkmark.seal.fill" : "hand.thumbsup")
                     }
                     .buttonStyle(meReady ? AnyButtonStyle(QuietButtonStyle(tint: Palette.success)) : AnyButtonStyle(BrassButtonStyle()))
+                } else {
+                    Button { onReady(true) } label: { Label("Join & Ready", systemImage: "hand.thumbsup") }
+                        .buttonStyle(BrassButtonStyle())
+                    Text("You're not in this game yet — join to take a seat.")
+                        .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
                 }
 
                 if amHost {
@@ -66,8 +71,8 @@ struct LobbyScreen: View {
                     Button(action: onStart) { Label("Depart the Station", systemImage: "play.fill") }
                         .buttonStyle(BrassButtonStyle()).disabled(!lobby.canStart).opacity(lobby.canStart ? 1 : 0.55)
                     Text(lobby.canStart
-                         ? "Start whenever you're ready — the game sizes to whoever's aboard (2-4)."
-                         : "Send the invite and wait for at least one more player to join.")
+                         ? "Only readied players (✓) join the game — start whenever 2+ are ready."
+                         : "Send the invite. The game starts once at least 2 players are readied.")
                         .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
                 } else {
                     Text("Waiting for the host to start… (tap refresh to update)")

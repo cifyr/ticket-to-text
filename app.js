@@ -5995,8 +5995,8 @@ function lobbyViewFor(lobby, participantId) {
     you: youIdx === -1 ? null : youIdx,
     maxPlayers: lobby.maxPlayers,
     members: lobby.members.map((m, i) => ({ name: m.name, ready: m.ready, isHost: i === 0 })),
-    canStart: lobby.members.length >= 2
-    // host may start whenever 2-4 are aboard
+    canStart: lobby.members.filter((m) => m.ready).length >= 2
+    // only readied players are in
   };
 }
 async function createLobby(store2, opts) {
@@ -6028,10 +6028,15 @@ async function joinLobby(store2, gameId, participantId, name) {
   await store2.set(gameId, { kind: "lobby", lobby });
   return lobbyViewFor(lobby, participantId);
 }
-async function setReady(store2, gameId, participantId, ready) {
+async function setReady(store2, gameId, participantId, ready, name) {
   const lobby = await loadLobby(store2, gameId);
-  const me = lobby.members.find((m) => m.id === participantId);
-  if (!me) throw new BadState("join the lobby first");
+  let me = lobby.members.find((m) => m.id === participantId);
+  if (!me) {
+    if (lobby.members.length >= lobby.maxPlayers) throw new BadState("lobby is full");
+    me = { id: participantId, name: name ?? null, ready: false };
+    lobby.members.push(me);
+  }
+  if (name) me.name = name;
   me.ready = ready;
   await store2.set(gameId, { kind: "lobby", lobby });
   return lobbyViewFor(lobby, participantId);
@@ -6039,9 +6044,10 @@ async function setReady(store2, gameId, participantId, ready) {
 async function startLobby(store2, gameId, participantId) {
   const lobby = await loadLobby(store2, gameId);
   if (participantId !== lobby.hostId) throw new BadState("only the host can start");
-  if (lobby.members.length < 2) throw new BadState("need at least 2 players");
-  const game = newGame(lobby.seed, lobby.members.length);
-  lobby.members.forEach((m, i) => {
+  const ready = lobby.members.filter((m) => m.ready);
+  if (ready.length < 2) throw new BadState("need at least 2 ready players");
+  const game = newGame(lobby.seed, ready.length);
+  ready.forEach((m, i) => {
     game.playerIDs[i] = m.id;
     game.playerNames[i] = m.name;
   });
@@ -6148,7 +6154,7 @@ var server = createServer(async (req, res) => {
     }
     if (req.method === "POST" && action === "ready") {
       const b = await readBody(req);
-      send(res, 200, await setReady(store, b.gameId, b.participantId, !!b.ready));
+      send(res, 200, await setReady(store, b.gameId, b.participantId, !!b.ready, b.name));
       return;
     }
     if (req.method === "POST" && action === "start") {

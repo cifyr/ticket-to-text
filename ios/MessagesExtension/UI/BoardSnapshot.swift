@@ -37,7 +37,7 @@ private struct MoveRecapImage: View {
 
             BoardView(state: state, selectedRouteId: nil,
                       canAct: false, claimable: { _ in false }, onSelect: { _ in },
-                      showNames: false, reportMode: true)
+                      showNames: false, style: .thin)
 
             if state.lastClaimedRouteId == nil { bottomStrip }
         }
