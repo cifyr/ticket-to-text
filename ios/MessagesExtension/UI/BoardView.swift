@@ -59,6 +59,7 @@ struct BoardArea: View {
     var focusedOwner: Int? = nil
     var onBackgroundTap: (() -> Void)? = nil
     var centerRouteId: Int? = nil     // parent asks to zoom in + center on this route
+    var onClearCenter: () -> Void = {}
 
     @State private var zoomed = false   // default: zoomed out (thin lines, no names)
     private let aspect: CGFloat = 0.74
@@ -70,6 +71,8 @@ struct BoardArea: View {
             Group {
                 if let t = highlightTicket {
                     DestinationBoard(state: state, ticket: t, aspect: aspect)
+                } else if let rid = centerRouteId {
+                    CenteredRouteBoard(state: state, routeId: rid, aspect: aspect, scale: closeScale, onTap: onClearCenter)
                 } else {
                     scrollMap(geo)
                 }
@@ -93,42 +96,14 @@ struct BoardArea: View {
         let scale: CGFloat = zoomed ? closeScale : baseScale
         let contentW = fitW * scale
         let contentH = fitW * aspect * scale
-        return ScrollViewReader { proxy in
-            ScrollView([.horizontal, .vertical], showsIndicators: false) {
-                BoardView(state: state, selectedRouteId: selectedRouteId,
-                          canAct: canAct, claimable: claimable, onSelect: onSelect,
-                          showNames: zoomed, style: zoomed ? .cars : .thin,
-                          focusedOwner: focusedOwner, onBackgroundTap: onBackgroundTap)
-                    .frame(width: contentW, height: contentH)
-                    .overlay { routeAnchors(CGSize(width: contentW, height: contentH)) }
-                    .frame(minWidth: geo.size.width, minHeight: geo.size.height) // center when small
-            }
-            .onChange(of: centerRouteId) { _, new in
-                guard let id = new else { return }
-                zoomed = true   // log jumps always land in the readable zoomed-in view
-                // Retry a few times so the scroll lands after the zoom relayouts.
-                for delay in [0.30, 0.55, 0.8] {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                        withAnimation(.easeInOut) { proxy.scrollTo("rt-\(id)", anchor: .center) }
-                    }
-                }
-            }
+        return ScrollView([.horizontal, .vertical], showsIndicators: false) {
+            BoardView(state: state, selectedRouteId: selectedRouteId,
+                      canAct: canAct, claimable: claimable, onSelect: onSelect,
+                      showNames: zoomed, style: zoomed ? .cars : .thin,
+                      focusedOwner: focusedOwner, onBackgroundTap: onBackgroundTap)
+                .frame(width: contentW, height: contentH)
+                .frame(minWidth: geo.size.width, minHeight: geo.size.height) // center when small
         }
-    }
-
-    // Invisible center anchors so ScrollViewReader can recenter on any route.
-    private func routeAnchors(_ size: CGSize) -> some View {
-        ZStack {
-            ForEach(state.routes) { r in
-                let a = BoardGeometry.point(GameMap.cities[r.cityA].x, GameMap.cities[r.cityA].y, in: size)
-                let b = BoardGeometry.point(GameMap.cities[r.cityB].x, GameMap.cities[r.cityB].y, in: size)
-                Color.clear.frame(width: 1, height: 1)
-                    .position(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
-                    .id("rt-\(r.id)")
-            }
-        }
-        .frame(width: size.width, height: size.height)
-        .allowsHitTesting(false)
     }
 
     private var zoomButton: some View {
@@ -148,6 +123,43 @@ struct BoardArea: View {
             Paper.grain.resizable(resizingMode: .tile).opacity(0.45).blendMode(.multiply)
         }
         .allowsHitTesting(false)
+    }
+}
+
+// Zoomed-in board statically translated so a given route sits dead center.
+// Deterministic (no scrolling), so a log jump always lands on the right route.
+// Tap anywhere to return to the interactive map.
+private struct CenteredRouteBoard: View {
+    let state: GameState
+    let routeId: Int
+    let aspect: CGFloat
+    let scale: CGFloat
+    let onTap: () -> Void
+
+    var body: some View {
+        GeometryReader { geo in
+            let fitW = min(geo.size.width, geo.size.height / aspect)
+            let contentW = fitW * scale
+            let contentH = fitW * aspect * scale
+            let mid = routeMidpoint(in: CGSize(width: contentW, height: contentH))
+            BoardView(state: state, selectedRouteId: nil, canAct: false,
+                      claimable: { _ in false }, onSelect: { _ in }, showNames: true, style: .cars)
+                .frame(width: contentW, height: contentH)
+                .offset(x: geo.size.width / 2 - mid.x, y: geo.size.height / 2 - mid.y)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+                .clipped()
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onTap)
+        }
+    }
+
+    private func routeMidpoint(in size: CGSize) -> CGPoint {
+        guard let r = state.routes.first(where: { $0.id == routeId }) else {
+            return CGPoint(x: size.width / 2, y: size.height / 2)
+        }
+        let a = BoardGeometry.point(GameMap.cities[r.cityA].x, GameMap.cities[r.cityA].y, in: size)
+        let b = BoardGeometry.point(GameMap.cities[r.cityB].x, GameMap.cities[r.cityB].y, in: size)
+        return CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
     }
 }
 
@@ -317,11 +329,12 @@ enum BoardGeometry {
             let car = carPath(center: center, len: carLen, height: height, angle: angle)
             switch kind {
             case .open:
-                ctx.stroke(car, with: .color(fill), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
+                // Unowned: solid outline only, no fill.
+                ctx.stroke(car, with: .color(fill), lineWidth: 1.8)
             case .buyable:
-                ctx.stroke(car, with: .color(Palette.brassLight.opacity(0.8)), lineWidth: 4)
-                ctx.fill(car, with: .color(fill))
-                ctx.stroke(car, with: .color(.black.opacity(0.5)), lineWidth: 1)
+                // Unowned but claimable: solid outline + gold glow, still no fill.
+                ctx.stroke(car, with: .color(Palette.brassLight.opacity(0.85)), lineWidth: 4.5)
+                ctx.stroke(car, with: .color(fill), lineWidth: 2.2)
             case .owned:
                 ctx.fill(car, with: .color(fill))
                 ctx.stroke(car, with: .color(.black.opacity(0.5)), lineWidth: 1)

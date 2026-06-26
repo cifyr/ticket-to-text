@@ -270,7 +270,8 @@ struct GameView: View {
                   onSelect: { id in withAnimation(.snappy) { selectedRouteId = id } },
                   focusedOwner: focusedOwner,
                   onBackgroundTap: { withAnimation(.snappy) { focusedOwner = nil } },
-                  centerRouteId: centerRouteId)
+                  centerRouteId: centerRouteId,
+                  onClearCenter: { withAnimation(.snappy) { centerRouteId = nil } })
             .overlay(alignment: .bottom) {
                 if let id = selectedRouteId, let route = state.routes.first(where: { $0.id == id }) {
                     RouteDetailCard(
@@ -486,7 +487,8 @@ struct DrawRevealView: View {
                             .animation(.spring(duration: 0.4).delay(Double(i) * 0.12), value: shown)
                     }
                 }
-                Text("Only you can see these.").font(.sans(11)).foregroundStyle(Palette.sepiaLight)
+                Text("Face-up cards are public — only deck draws stay secret.")
+                    .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
             }
             .padding(24)
         }
