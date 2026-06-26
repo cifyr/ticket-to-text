@@ -9,7 +9,7 @@ struct BoardView: View {
     let claimable: (Route) -> Bool
     let onSelect: (Int) -> Void
     var showNames: Bool = true
-    var reportMode: Bool = false      // bubble snapshot / recap: subtle unclaimed, no clutter
+    var reportMode: Bool = false      // bubble snapshot / recap: thin colored lines
     var focusedOwner: Int? = nil      // when set, only this player's routes stay lit
     var onBackgroundTap: (() -> Void)? = nil
 
@@ -53,11 +53,12 @@ struct BoardArea: View {
     let onSelect: (Int) -> Void
     var focusedOwner: Int? = nil
     var onBackgroundTap: (() -> Void)? = nil
+    var centerRouteId: Int? = nil     // parent asks to zoom in + center on this route
 
-    @State private var zoomed = false   // default: zoomed out (whole map, names on)
+    @State private var zoomed = false   // default: zoomed out (whole map, no names)
     private let aspect: CGFloat = 0.74
-    private let baseScale: CGFloat = 1.12   // zoomed out: the map roughly fits
-    private let closeScale: CGFloat = 3.0   // zoomed in: well past fit for detail
+    private let baseScale: CGFloat = 1.18   // zoomed out: the whole map roughly fits
+    private let closeScale: CGFloat = 3.7   // zoomed in: large enough to read detail
 
     var body: some View {
         GeometryReader { geo in
@@ -87,13 +88,38 @@ struct BoardArea: View {
         let scale: CGFloat = zoomed ? closeScale : baseScale
         let contentW = fitW * scale
         let contentH = fitW * aspect * scale
-        return ScrollView([.horizontal, .vertical], showsIndicators: false) {
-            BoardView(state: state, selectedRouteId: selectedRouteId,
-                      canAct: canAct, claimable: claimable, onSelect: onSelect,
-                      showNames: true, focusedOwner: focusedOwner, onBackgroundTap: onBackgroundTap)
-                .frame(width: contentW, height: contentH)
-                .frame(minWidth: geo.size.width, minHeight: geo.size.height) // center when small
+        return ScrollViewReader { proxy in
+            ScrollView([.horizontal, .vertical], showsIndicators: false) {
+                BoardView(state: state, selectedRouteId: selectedRouteId,
+                          canAct: canAct, claimable: claimable, onSelect: onSelect,
+                          showNames: zoomed, focusedOwner: focusedOwner, onBackgroundTap: onBackgroundTap)
+                    .frame(width: contentW, height: contentH)
+                    .overlay { routeAnchors(CGSize(width: contentW, height: contentH)) }
+                    .frame(minWidth: geo.size.width, minHeight: geo.size.height) // center when small
+            }
+            .onChange(of: centerRouteId) { _, new in
+                guard let id = new else { return }
+                zoomed = true   // log jumps always land in the readable zoomed-in view
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    withAnimation(.easeInOut) { proxy.scrollTo("rt-\(id)", anchor: .center) }
+                }
+            }
         }
+    }
+
+    // Invisible center anchors so ScrollViewReader can recenter on any route.
+    private func routeAnchors(_ size: CGSize) -> some View {
+        ZStack {
+            ForEach(state.routes) { r in
+                let a = BoardGeometry.point(GameMap.cities[r.cityA].x, GameMap.cities[r.cityA].y, in: size)
+                let b = BoardGeometry.point(GameMap.cities[r.cityB].x, GameMap.cities[r.cityB].y, in: size)
+                Color.clear.frame(width: 1, height: 1)
+                    .position(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+                    .id("rt-\(r.id)")
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .allowsHitTesting(false)
     }
 
     private var zoomButton: some View {
@@ -147,7 +173,6 @@ private struct DestinationLine: View {
     var body: some View {
         let a = BoardGeometry.point(GameMap.cities[ticket.cityA].x, GameMap.cities[ticket.cityA].y, in: size)
         let b = BoardGeometry.point(GameMap.cities[ticket.cityB].x, GameMap.cities[ticket.cityB].y, in: size)
-        let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
         ZStack {
             Path { p in p.move(to: a); p.addLine(to: b) }
                 .trim(from: 0, to: progress)
@@ -159,18 +184,8 @@ private struct DestinationLine: View {
                     .frame(width: 26, height: 26)
                     .position([a, b][i])
             }
-            pointsBadge.position(mid).opacity(Double(progress))
         }
         .onAppear { withAnimation(.easeInOut(duration: 1.0)) { progress = 1 } }
-    }
-
-    private var pointsBadge: some View {
-        Text("\(ticket.points)")
-            .font(.slab(18, .bold)).foregroundStyle(.white)
-            .frame(width: 36, height: 36)
-            .background(Circle().fill(Palette.routeHot))
-            .overlay(Circle().stroke(.white.opacity(0.85), lineWidth: 2))
-            .shadow(color: .black.opacity(0.35), radius: 3, y: 1)
     }
 }
 
@@ -202,27 +217,11 @@ enum BoardGeometry {
             let a = points[route.cityA], b = points[route.cityB]
             let owner = route.claimedBy
             let claimable = owner == nil && highlightClaimable(route)
-
-            // Per-state styling. Claimed rails are thick and colored by owner
-            // (the most recent claim glows hot); open rails are thin and faint.
-            var color: Color
-            var width: CGFloat
-            var glow: Color?
-            if let owner {
-                let isNew = route.id == newest
-                color = isNew ? Palette.routeHot : ownerColor(owner)
-                width = isNew ? 9 : 8
-                glow = isNew ? Palette.routeHot.opacity(0.55) : nil
-            } else if claimable {
-                color = Palette.brass; width = 6; glow = Palette.brassLight.opacity(0.7)
-            } else {
-                color = Palette.sepia; width = reportMode ? 2.5 : 4; glow = nil
-            }
+            let isNew = route.id == newest
 
             // Focus mode: spotlight one player, fade everything else right down.
             var alpha = 1.0
             if let f = focusedOwner { alpha = (owner == f) ? 1 : 0.07 }
-            else if owner == nil { alpha = reportMode ? 0.28 : 0.5 }
 
             if route.id == selected && !reportMode {
                 var halo = Path(); halo.move(to: a); halo.addLine(to: b)
@@ -230,9 +229,25 @@ enum BoardGeometry {
                            style: StrokeStyle(lineWidth: 16, lineCap: .round))
             }
 
-            strokeCars(in: ctx, from: a, to: b, cars: route.length,
-                       color: color.opacity(alpha), width: width,
-                       glow: glow?.opacity(alpha), bordered: owner != nil || claimable)
+            if reportMode {
+                // Simplified "send" view: one thin colored line per route.
+                let color: Color = owner != nil ? (isNew ? Palette.routeHot : ownerColor(owner!)) : Palette.routeOpen
+                drawThinLine(in: ctx, from: a, to: b, color: color.opacity(alpha),
+                             width: isNew ? 3 : 2.2, glow: isNew ? Palette.routeHot.opacity(0.5 * alpha) : nil)
+            } else {
+                // Live board: the box-car design.
+                let fill: Color
+                let style: CarStyle
+                if let owner {
+                    fill = isNew ? Palette.routeHot : ownerColor(owner)
+                    style = isNew ? .glow : .filled
+                } else if claimable {
+                    fill = Palette.brass; style = .glow
+                } else {
+                    fill = Palette.routeOpen; style = .ghost
+                }
+                drawBoxCars(in: ctx, from: a, to: b, cars: route.length, fill: fill.opacity(alpha), style: style)
+            }
         }
 
         let dotAlpha = focusedOwner == nil ? 1.0 : 0.5
@@ -250,6 +265,8 @@ enum BoardGeometry {
         }
     }
 
+    private enum CarStyle { case filled, glow, ghost }
+
     // City label set on a small parchment chip so it stays legible over the map.
     private static func drawCityName(_ name: String, at center: CGPoint, in ctx: GraphicsContext, alpha: Double) {
         let text = Text(name).font(.system(size: 11, weight: .semibold, design: .serif))
@@ -264,24 +281,51 @@ enum BoardGeometry {
         ctx.draw(resolved, at: center)
     }
 
-    // A rail drawn as one dash per train car so spaces are countable without
-    // any printed number. Claimed/claimable rails get a dark edge for contrast.
-    private static func strokeCars(in ctx: GraphicsContext, from a: CGPoint, to b: CGPoint,
-                                   cars: Int, color: Color, width: CGFloat,
-                                   glow: Color?, bordered: Bool) {
-        let len = max(hypot(b.x - a.x, b.y - a.y), 1)
-        let cell = len / CGFloat(max(cars, 1))
-        let dash = cell * 0.6, gap = cell - dash
+    // A thin single line per route for the simplified "send" snapshot.
+    private static func drawThinLine(in ctx: GraphicsContext, from a: CGPoint, to b: CGPoint,
+                                     color: Color, width: CGFloat, glow: Color?) {
         var p = Path(); p.move(to: a); p.addLine(to: b)
-        let style = StrokeStyle(lineWidth: width, lineCap: .butt, dash: [dash, gap])
         if let glow {
-            ctx.stroke(p, with: .color(glow), style: StrokeStyle(lineWidth: width + 5, lineCap: .round, dash: [dash, gap]))
+            ctx.stroke(p, with: .color(glow), style: StrokeStyle(lineWidth: width + 4, lineCap: .round))
         }
-        if bordered {
-            ctx.stroke(p, with: .color(.black.opacity(0.45)),
-                       style: StrokeStyle(lineWidth: width + 1.5, lineCap: .butt, dash: [dash, gap]))
+        ctx.stroke(p, with: .color(color), style: StrokeStyle(lineWidth: width, lineCap: .round))
+    }
+
+    // The live board's enamel box cars: one skewed car per train length.
+    private static func drawBoxCars(in ctx: GraphicsContext, from a: CGPoint, to b: CGPoint,
+                                    cars: Int, fill: Color, style: CarStyle) {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let length = max(hypot(dx, dy), 1)
+        let angle = atan2(dy, dx)
+        let carLen = (length / CGFloat(max(cars, 1))) * 0.74
+        let height: CGFloat = 13
+        for k in 0..<cars {
+            let t = (CGFloat(k) + 0.5) / CGFloat(cars)
+            let center = CGPoint(x: a.x + dx * t, y: a.y + dy * t)
+            let car = carPath(center: center, len: carLen, height: height, angle: angle)
+            switch style {
+            case .ghost:
+                ctx.stroke(car, with: .color(fill), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
+            case .glow:
+                ctx.stroke(car, with: .color(Palette.brassLight.opacity(0.7)), lineWidth: 5)
+                ctx.fill(car, with: .color(fill))
+                ctx.stroke(car, with: .color(.black.opacity(0.45)), lineWidth: 1)
+            case .filled:
+                ctx.fill(car, with: .color(fill))
+                ctx.stroke(car, with: .color(.black.opacity(0.45)), lineWidth: 1)
+            }
         }
-        ctx.stroke(p, with: .color(color), style: style)
+    }
+
+    private static func carPath(center: CGPoint, len: CGFloat, height: CGFloat, angle: CGFloat) -> Path {
+        let s = height * 0.34
+        var p = Path()
+        p.move(to: CGPoint(x: -len / 2 + s, y: -height / 2))
+        p.addLine(to: CGPoint(x: len / 2 + s, y: -height / 2))
+        p.addLine(to: CGPoint(x: len / 2 - s, y: height / 2))
+        p.addLine(to: CGPoint(x: -len / 2 - s, y: height / 2))
+        p.closeSubpath()
+        return p.applying(CGAffineTransform(translationX: center.x, y: center.y).rotated(by: angle))
     }
 
     static func distance(from p: CGPoint, toSegment a: CGPoint, _ b: CGPoint) -> CGFloat {

@@ -40,12 +40,12 @@ struct RouteDetailCard: View {
                     .font(.sans(12, .semibold)).foregroundStyle(ownerColor(owner))
             } else {
                 Text(affordText).font(.sans(11)).foregroundStyle(affordable ? Palette.ink : Palette.sepiaLight)
-                Button(action: onClaim) {
-                    Label(affordable ? "Claim route" : "Can't claim yet", systemImage: "hand.tap.fill")
+                // The claim button only appears when it's actually your turn and
+                // you can pay — no dead "can't claim yet" button otherwise.
+                if affordable {
+                    Button(action: onClaim) { Label("Claim route", systemImage: "hand.tap.fill") }
+                        .buttonStyle(BrassButtonStyle())
                 }
-                .buttonStyle(BrassButtonStyle())
-                .disabled(!affordable)
-                .opacity(affordable ? 1 : 0.55)
             }
         }
         .stub(Palette.parchment, corner: 14, padding: 14, stroke: Palette.brassHair)

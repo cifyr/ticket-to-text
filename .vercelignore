@@ -1,6 +1,9 @@
 # Deploy only the self-contained app.js server (engine bundled in) + package.json.
 ios
 build
+build-device
+.vercel
+.git
 .archive
 node_modules
 *.xcodeproj

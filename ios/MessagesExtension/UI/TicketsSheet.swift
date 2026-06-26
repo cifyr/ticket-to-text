@@ -4,6 +4,9 @@ import SwiftUI
 struct TicketsSheet: View {
     let tickets: [Ticket]
     let myRoutes: [Route]
+    let ticketsLeft: Int
+    let canDraw: Bool
+    let onDraw: () -> Void          // draw a fresh batch of destination tickets (uses your turn)
     let onShow: (Ticket) -> Void   // highlight this ticket on the map and close
 
     @Environment(\.dismiss) private var dismiss
@@ -30,6 +33,16 @@ struct TicketsSheet: View {
                             let done = Scoring.connected(myRoutes, from: t.cityA, to: t.cityB)
                             Button { onShow(t) } label: { ticketStub(t, done: done) }
                                 .buttonStyle(.plain)
+                        }
+
+                        if ticketsLeft > 0 {
+                            Button(action: onDraw) {
+                                Label("Draw destination tickets", systemImage: "ticket.fill")
+                            }
+                            .buttonStyle(BrassButtonStyle()).disabled(!canDraw).opacity(canDraw ? 1 : 0.5)
+                            Text(canDraw ? "Uses your whole turn. You keep all the tickets you draw."
+                                         : "You can draw tickets on your turn.")
+                                .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
                         }
                     }
                     .padding(20)
