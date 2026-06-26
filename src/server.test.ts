@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  createGame, createLobby, getView, joinLobby, MemoryStore, setReady, startLobby, submitMove,
+  createGame, createLobby, getView, joinLobby, leaveLobby, MemoryStore, setReady, startLobby, submitMove,
+  type Room, type Store,
 } from "./server.ts";
 
 test("host view exposes only the host's own secrets", async () => {
@@ -124,4 +125,71 @@ test("lobby: moving before start is rejected; lobby respects max players", async
   await joinLobby(store, gameId, "X");
   const full = await joinLobby(store, gameId, "Y"); // exceeds max 2 -> ignored
   assert.equal(full.members.length, 2);
+});
+
+test("lobby: host can't start unless the host is ready (no self-spectating)", async () => {
+  const store = new MemoryStore();
+  const { gameId } = await createLobby(store, { hostId: "A", hostName: "Alice" });
+  await setReady(store, gameId, "B", true, "Bob");
+  await setReady(store, gameId, "C", true, "Cara");
+  // Two non-hosts are ready but the host never readied: starting must be refused.
+  await assert.rejects(() => startLobby(store, gameId, "A"), /host/);
+
+  // Once the host readies, the start succeeds and the host gets seat 0.
+  await setReady(store, gameId, "A", true);
+  const game = await startLobby(store, gameId, "A");
+  assert.equal(game.you, 0, "host is a player, not a spectator");
+  assert.equal(game.players.length, 3);
+});
+
+// A stand-in for the Redis store: get/set really await, so a mutator that did its
+// own read-then-write would interleave and lose an update. store.update must
+// serialize, like the production distributed lock does.
+class AsyncStore implements Store {
+  private m = new Map<string, Room>();
+  private chain: Promise<unknown> = Promise.resolve();
+  private tick() { return new Promise<void>((r) => setTimeout(r, 0)); }
+  async get(id: string) { await this.tick(); return this.m.get(id); }
+  async set(id: string, room: Room) { await this.tick(); this.m.set(id, room); }
+  update(id: string, mutate: (room: Room | undefined) => Room): Promise<Room> {
+    const run = this.chain.then(async () => {
+      await this.tick();
+      const next = mutate(this.m.get(id));
+      await this.tick();
+      this.m.set(id, next);
+      return next;
+    });
+    this.chain = run.catch(() => {});
+    return run;
+  }
+}
+
+test("concurrent readies don't clobber each other (atomic update)", async () => {
+  const store = new AsyncStore();
+  const { gameId } = await createLobby(store, { hostId: "A", hostName: "Alice" });
+  // Three players ready up simultaneously against an awaiting store.
+  await Promise.all([
+    setReady(store, gameId, "B", true, "Bob"),
+    setReady(store, gameId, "C", true, "Cara"),
+    setReady(store, gameId, "D", true, "Dee"),
+  ]);
+  const v = await getView(store, gameId, "A");
+  assert.equal(v.phase, "lobby");
+  if (v.phase !== "lobby") return;
+  assert.equal(v.members.length, 4, "no readied player was lost to a race");
+  assert.equal(v.members.filter((m) => m.ready).length, 3);
+});
+
+test("concurrent leave + join stay consistent (atomic update)", async () => {
+  const store = new AsyncStore();
+  const { gameId } = await createLobby(store, { hostId: "A" });
+  await joinLobby(store, gameId, "B");
+  await Promise.all([
+    leaveLobby(store, gameId, "B"),
+    joinLobby(store, gameId, "C"),
+  ]);
+  const v = await getView(store, gameId, "A");
+  if (v.phase !== "lobby") { assert.fail("expected lobby"); return; }
+  assert.equal(v.members.length, 2, "A and C remain after B leaves");
+  assert.equal(v.members[0].isHost, true, "host seat is intact");
 });

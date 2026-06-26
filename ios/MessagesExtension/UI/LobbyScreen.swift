@@ -69,13 +69,16 @@ struct LobbyScreen: View {
                 }
 
                 if amHost {
+                    let canDepart = lobby.canStart && meReady
                     Button(action: onInvite) { Label("Send Invite", systemImage: "paperplane.fill") }
                         .buttonStyle(QuietButtonStyle())
                     Button(action: onStart) { Label("Depart the Station", systemImage: "play.fill") }
-                        .buttonStyle(BrassButtonStyle()).disabled(!lobby.canStart).opacity(lobby.canStart ? 1 : 0.55)
-                    Text(lobby.canStart
-                         ? "Only readied players (✓) join the game — start whenever 2+ are ready."
-                         : "Send the invite. The game starts once at least 2 players are readied.")
+                        .buttonStyle(BrassButtonStyle()).disabled(!canDepart).opacity(canDepart ? 1 : 0.55)
+                    Text(!meReady
+                         ? "Mark yourself ready to take a seat — only readied players (✓) join the game."
+                         : (canDepart
+                            ? "Only readied players (✓) join the game — start whenever 2+ are ready."
+                            : "Send the invite. The game starts once at least 2 players are readied."))
                         .font(.sans(11)).foregroundStyle(Palette.sepiaLight).multilineTextAlignment(.center)
                 } else {
                     Text("Waiting for the host to start… (tap refresh to update)")
