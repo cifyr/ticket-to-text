@@ -51,12 +51,12 @@ export const CITIES: City[] = [
 export const CITY_NAMES = CITIES.map((c) => c.name);
 
 const ROUTE_DEFS: [number, number, number, RoutePaint][] = [
-  [0, 8, 1, "gray"],    // Vancouver - Seattle
+  [0, 8, 1, "red"],     // Vancouver - Seattle
   [0, 1, 3, "gray"],    // Vancouver - Calgary
   [1, 8, 4, "gray"],    // Calgary - Seattle
   [1, 9, 4, "gray"],    // Calgary - Helena
   [1, 2, 6, "white"],   // Calgary - Winnipeg
-  [8, 11, 1, "gray"],   // Seattle - Portland
+  [8, 11, 1, "green"],  // Seattle - Portland
   [8, 9, 6, "yellow"],  // Seattle - Helena
   [11, 17, 5, "green"], // Portland - San Francisco
   [11, 16, 6, "blue"],  // Portland - Salt Lake City
@@ -85,17 +85,17 @@ const ROUTE_DEFS: [number, number, number, RoutePaint][] = [
   [31, 33, 6, "green"], // El Paso - Houston
   [2, 10, 4, "gray"],   // Winnipeg - Duluth
   [2, 3, 6, "gray"],    // Winnipeg - Sault Ste Marie
-  [10, 15, 2, "gray"],  // Duluth - Omaha
+  [10, 15, 2, "orange"],// Duluth - Omaha
   [10, 14, 3, "red"],   // Duluth - Chicago
   [10, 3, 3, "purple"], // Duluth - Sault Ste Marie
   [10, 5, 6, "purple"], // Duluth - Toronto
   [15, 19, 1, "gray"],  // Omaha - Kansas City
   [15, 14, 4, "blue"],  // Omaha - Chicago
   [19, 20, 2, "blue"],  // Kansas City - Saint Louis
-  [19, 25, 2, "gray"],  // Kansas City - Oklahoma City
+  [19, 25, 2, "blue"],  // Kansas City - Oklahoma City
   [25, 26, 2, "gray"],  // Oklahoma City - Little Rock
   [25, 32, 2, "gray"],  // Oklahoma City - Dallas
-  [32, 33, 1, "gray"],  // Dallas - Houston
+  [32, 33, 1, "orange"],// Dallas - Houston
   [32, 26, 2, "gray"],  // Dallas - Little Rock
   [33, 34, 2, "gray"],  // Houston - New Orleans
   [26, 20, 2, "gray"],  // Little Rock - Saint Louis
@@ -129,22 +129,22 @@ const ROUTE_DEFS: [number, number, number, RoutePaint][] = [
   [3, 5, 2, "gray"],    // Sault Ste Marie - Toronto
   // Double routes (mirror Ticket to Ride USA). A parallel second track between
   // the same two cities; only ONE of each pair may ever be claimed (see canClaim).
-  [0, 8, 1, "gray"],    // Vancouver - Seattle (2)
-  [8, 11, 1, "gray"],   // Seattle - Portland (2)
-  [11, 17, 5, "green"], // Portland - San Francisco (2)
-  [17, 16, 5, "orange"],// San Francisco - Salt Lake City (2)
-  [9, 18, 4, "green"],  // Helena - Denver (2)
-  [18, 15, 4, "purple"],// Denver - Omaha (2)
-  [18, 19, 4, "black"], // Denver - Kansas City (2)
-  [10, 15, 2, "gray"],  // Duluth - Omaha (2)
-  [19, 20, 2, "blue"],  // Kansas City - Saint Louis (2)
-  [19, 25, 2, "gray"],  // Kansas City - Oklahoma City (2)
-  [20, 14, 2, "green"], // Saint Louis - Chicago (2)
-  [14, 12, 3, "orange"],// Chicago - Pittsburgh (2)
-  [7, 6, 2, "yellow"],  // New York - Boston (2)
-  [13, 7, 2, "orange"], // Washington - New York (2)
-  [32, 33, 1, "gray"],  // Dallas - Houston (2)
-  [34, 27, 4, "yellow"],// New Orleans - Atlanta (2)
+  [0, 8, 1, "white"],   // Vancouver - Seattle (2)        pairs with red
+  [8, 11, 1, "yellow"], // Seattle - Portland (2)         pairs with green
+  [11, 17, 5, "purple"],// Portland - San Francisco (2)   pairs with green
+  [17, 16, 5, "white"], // San Francisco - Salt Lake City (2) pairs with orange
+  [9, 18, 4, "red"],    // Helena - Denver (2)            pairs with green
+  [18, 15, 4, "white"], // Denver - Omaha (2)             pairs with purple
+  [18, 19, 4, "orange"],// Denver - Kansas City (2)       pairs with black
+  [10, 15, 2, "blue"],  // Duluth - Omaha (2)             pairs with orange
+  [19, 20, 2, "purple"],// Kansas City - Saint Louis (2)  pairs with blue
+  [19, 25, 2, "red"],   // Kansas City - Oklahoma City (2) pairs with blue
+  [20, 14, 2, "white"], // Saint Louis - Chicago (2)      pairs with green
+  [14, 12, 3, "black"], // Chicago - Pittsburgh (2)       pairs with orange
+  [7, 6, 2, "red"],     // New York - Boston (2)          pairs with yellow
+  [13, 7, 2, "black"],  // Washington - New York (2)      pairs with orange
+  [32, 33, 1, "red"],   // Dallas - Houston (2)           pairs with orange
+  [34, 27, 4, "green"], // New Orleans - Atlanta (2)      pairs with yellow
 ];
 
 export function mapRoutes(): Route[] {

@@ -54,17 +54,17 @@ enum GameMap {
 
     static func routes() -> [Route] {
         let defs: [(Int, Int, Int, RoutePaint)] = [
-            (0, 8, 1, .gray), (0, 1, 3, .gray), (1, 8, 4, .gray), (1, 9, 4, .gray), (1, 2, 6, .white),
-            (8, 11, 1, .gray), (8, 9, 6, .yellow), (11, 17, 5, .green), (11, 16, 6, .blue),
+            (0, 8, 1, .red), (0, 1, 3, .gray), (1, 8, 4, .gray), (1, 9, 4, .gray), (1, 2, 6, .white),
+            (8, 11, 1, .green), (8, 9, 6, .yellow), (11, 17, 5, .green), (11, 16, 6, .blue),
             (17, 16, 5, .orange), (17, 29, 3, .purple), (29, 23, 2, .gray), (29, 30, 3, .gray),
             (29, 31, 6, .black), (23, 16, 3, .orange), (16, 9, 3, .purple), (16, 18, 3, .red),
             (9, 18, 4, .green), (9, 2, 4, .blue), (9, 10, 6, .orange), (9, 15, 5, .red),
             (30, 18, 5, .white), (30, 24, 3, .gray), (30, 31, 3, .gray), (18, 24, 2, .gray),
             (18, 15, 4, .purple), (18, 19, 4, .black), (18, 25, 4, .red), (24, 31, 2, .gray),
             (24, 25, 3, .blue), (31, 32, 4, .red), (31, 33, 6, .green), (2, 10, 4, .gray),
-            (2, 3, 6, .gray), (10, 15, 2, .gray), (10, 14, 3, .red), (10, 3, 3, .purple),
+            (2, 3, 6, .gray), (10, 15, 2, .orange), (10, 14, 3, .red), (10, 3, 3, .purple),
             (10, 5, 6, .purple), (15, 19, 1, .gray), (15, 14, 4, .blue), (19, 20, 2, .blue),
-            (19, 25, 2, .gray), (25, 26, 2, .gray), (25, 32, 2, .gray), (32, 33, 1, .gray),
+            (19, 25, 2, .blue), (25, 26, 2, .gray), (25, 32, 2, .gray), (32, 33, 1, .orange),
             (32, 26, 2, .gray), (33, 34, 2, .gray), (26, 20, 2, .gray), (26, 21, 3, .white),
             (26, 34, 3, .green), (20, 14, 2, .green), (20, 21, 2, .yellow), (14, 12, 3, .orange),
             (14, 5, 4, .white), (21, 27, 1, .gray), (21, 12, 4, .yellow), (21, 22, 3, .black),
@@ -75,10 +75,10 @@ enum GameMap {
             (4, 5, 3, .gray), (4, 3, 5, .black), (3, 5, 2, .gray),
             // Double routes (mirror Ticket to Ride USA). Same order as src/map.ts so
             // route ids match the server. Only one of each pair is ever claimable.
-            (0, 8, 1, .gray), (8, 11, 1, .gray), (11, 17, 5, .green), (17, 16, 5, .orange),
-            (9, 18, 4, .green), (18, 15, 4, .purple), (18, 19, 4, .black), (10, 15, 2, .gray),
-            (19, 20, 2, .blue), (19, 25, 2, .gray), (20, 14, 2, .green), (14, 12, 3, .orange),
-            (7, 6, 2, .yellow), (13, 7, 2, .orange), (32, 33, 1, .gray), (34, 27, 4, .yellow),
+            (0, 8, 1, .white), (8, 11, 1, .yellow), (11, 17, 5, .purple), (17, 16, 5, .white),
+            (9, 18, 4, .red), (18, 15, 4, .white), (18, 19, 4, .orange), (10, 15, 2, .blue),
+            (19, 20, 2, .purple), (19, 25, 2, .red), (20, 14, 2, .white), (14, 12, 3, .black),
+            (7, 6, 2, .red), (13, 7, 2, .black), (32, 33, 1, .red), (34, 27, 4, .green),
         ]
         return defs.enumerated().map { i, d in
             Route(id: i, cityA: d.0, cityB: d.1, length: d.2, color: d.3, claimedBy: nil)
