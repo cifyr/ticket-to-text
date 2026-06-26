@@ -30,6 +30,7 @@ struct PlayerView: Codable {
     let lastSummary: String?
     let lastClaimedRouteId: Int?
     let lastPublicDraw: [Card]
+    var pendingTickets: [Ticket]? = nil   // your own drawn tickets awaiting keep/discard
     let finalScores: [FinalScore]?
 }
 

@@ -68,11 +68,11 @@ enum Scoring {
     static func finalScores(_ state: GameState) -> [FinalScore] {
         let longest = state.players.indices.map { longestRoute(state, $0) }
         let maxLongest = longest.max() ?? 0
-        let uniqueMax = longest.filter { $0 == maxLongest }.count == 1
         return state.players.indices.map { p in
             let routeScore = state.players[p].score
             let tScore = ticketScore(state, p)
-            let bonus = (uniqueMax && longest[p] == maxLongest) ? longestRouteBonus : 0
+            // Every player tied for the longest path gets the bonus.
+            let bonus = (maxLongest > 0 && longest[p] == maxLongest) ? longestRouteBonus : 0
             return FinalScore(routeScore: routeScore, ticketScore: tScore,
                               longestRoute: longest[p], longestBonus: bonus,
                               total: routeScore + tScore + bonus)

@@ -57,7 +57,8 @@ enum Game {
                               finalTurnsLeft: nil, over: false, deckSeed: seed,
                               playerIDs: Array(repeating: nil, count: count),
                               playerNames: Array(repeating: nil, count: count), moveCount: 0, log: [],
-                              lastActor: nil, lastSummary: nil, lastClaimedRouteId: nil, lastPublicDraw: [])
+                              lastActor: nil, lastSummary: nil, lastClaimedRouteId: nil, lastPublicDraw: [],
+                              pendingTickets: nil)
         refillMarket(&state)
         return state
     }
@@ -177,15 +178,31 @@ enum Game {
         let n = min(startingTickets, state.ticketDeck.count)
         let drawn = Array(state.ticketDeck.prefix(n))
         state.ticketDeck.removeFirst(n)
-        state.players[state.currentPlayer].tickets.append(contentsOf: drawn)
+        // Held for the keep/discard choice; the turn waits.
+        state.pendingTickets = PendingTickets(player: state.currentPlayer, drawn: drawn)
         return n
+    }
+
+    @discardableResult
+    private static func applyKeepTickets(_ state: inout GameState, keep: [Int]) throws -> Int {
+        guard let pending = state.pendingTickets else { throw IllegalMoveError(message: "no tickets to keep") }
+        guard pending.player == state.currentPlayer else { throw IllegalMoveError(message: "not your tickets") }
+        let drawnIds = Set(pending.drawn.map { $0.id })
+        let keepSet = Set(keep.filter { drawnIds.contains($0) })
+        guard keepSet.count >= 1 else { throw IllegalMoveError(message: "keep at least one ticket") }
+        let kept = pending.drawn.filter { keepSet.contains($0.id) }
+        let returned = pending.drawn.filter { !keepSet.contains($0.id) }
+        state.players[pending.player].tickets.append(contentsOf: kept)
+        state.ticketDeck.append(contentsOf: returned) // returned go to the bottom of the deck
+        state.pendingTickets = nil
+        return kept.count
     }
 
     private static func endOfTurn(_ state: inout GameState) {
         if state.routes.allSatisfy({ $0.claimedBy != nil }) { state.over = true; return }
         if state.finalTurnsLeft == nil {
             if state.players[state.currentPlayer].trains <= finalTrainThreshold {
-                state.finalTurnsLeft = state.players.count - 1 // every other player gets one more turn
+                state.finalTurnsLeft = state.players.count // each player, incl. this one, gets one final turn
             }
         } else {
             state.finalTurnsLeft! -= 1
@@ -204,12 +221,17 @@ enum Game {
 
     static func applyMove(_ state: GameState, _ move: Move) throws -> GameState {
         if isGameOver(state) { throw IllegalMoveError(message: "game is already over") }
+        // A pending ticket draw must be resolved before anything else.
+        if state.pendingTickets != nil, case .keepTickets = move {} else if state.pendingTickets != nil {
+            throw IllegalMoveError(message: "keep at least one of your drawn tickets first")
+        }
         var next = state
         let actor = next.currentPlayer
 
         let summary: String
         var claimedId: Int? = nil
         var publicDraw: [Card] = []
+        var advance = true // a pending ticket draw keeps the turn open
         switch move {
         case .drawCards(let picks):
             let marketCards: [Card] = picks.compactMap {
@@ -225,7 +247,11 @@ enum Game {
             claimedId = route.id
         case .drawTickets:
             let n = try applyDrawTickets(&next)
-            summary = "drew \(n) destination ticket\(n == 1 ? "" : "s")"
+            summary = "drew \(n) destination tickets"
+            advance = false // wait for the keep/discard choice
+        case .keepTickets(let keep):
+            let n = try applyKeepTickets(&next, keep: keep)
+            summary = "kept \(n) destination ticket\(n == 1 ? "" : "s")"
         }
 
         next.lastActor = actor
@@ -235,7 +261,7 @@ enum Game {
         next.log.append(LogEntry(actor: actor, text: summary))
         next.moveCount += 1
 
-        endOfTurn(&next)
+        if advance { endOfTurn(&next) }
         return next
     }
 

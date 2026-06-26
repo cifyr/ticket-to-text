@@ -60,6 +60,14 @@ export interface GameState {
   lastSummary: string | null;        // what they did (name-neutral)
   lastClaimedRouteId: number | null; // set when the last move claimed a route
   lastPublicDraw: Card[];            // face-up cards taken last move (public; blind draws excluded)
+  pendingTickets: PendingTickets | null; // mid-turn: drawn tickets awaiting keep/discard
+}
+
+// After drawing destination tickets the player must keep >= 1; the rest go to
+// the bottom of the deck. The turn doesn't advance until they choose.
+export interface PendingTickets {
+  player: number;
+  drawn: Ticket[];
 }
 
 // One face-up market slot or a blind draw from the deck.
@@ -68,7 +76,8 @@ export type DrawPick = { from: "market"; slot: number } | { from: "blind" };
 export type Move =
   | { kind: "drawCards"; picks: DrawPick[] }       // take up to 2 train cards
   | { kind: "claim"; routeId: number; color?: RouteColor } // color = chosen paint for gray
-  | { kind: "drawTickets" };                        // draw destination tickets
+  | { kind: "drawTickets" }                         // draw destination tickets (then keep >= 1)
+  | { kind: "keepTickets"; keep: number[] };        // resolve a pending ticket draw
 
 export class IllegalMoveError extends Error {
   constructor(message: string) {

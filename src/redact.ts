@@ -47,6 +47,7 @@ export interface PlayerView {
   lastSummary: string | null;
   lastClaimedRouteId: number | null;
   lastPublicDraw: Card[];
+  pendingTickets: Ticket[] | null; // your own drawn tickets awaiting keep/discard
   finalScores: FinalScore[] | null;
 }
 
@@ -77,6 +78,8 @@ export function redactFor(state: GameState, seat: number | null): PlayerView {
     lastSummary: state.lastSummary,
     lastClaimedRouteId: state.lastClaimedRouteId,
     lastPublicDraw: state.lastPublicDraw,
+    pendingTickets: state.pendingTickets && state.pendingTickets.player === seat
+      ? state.pendingTickets.drawn : null,
     finalScores: over ? finalScores(state) : null,
   };
 }

@@ -63,6 +63,13 @@ struct GameState: Codable, Equatable {
     var lastSummary: String?
     var lastClaimedRouteId: Int?
     var lastPublicDraw: [Card]
+    var pendingTickets: PendingTickets?
+}
+
+// Drawn destination tickets awaiting the player's keep/discard choice.
+struct PendingTickets: Codable, Equatable {
+    var player: Int
+    var drawn: [Ticket]
 }
 
 enum DrawPick: Equatable {
@@ -74,6 +81,7 @@ enum Move: Equatable {
     case drawCards([DrawPick])
     case claim(routeId: Int, color: Card?)
     case drawTickets
+    case keepTickets([Int])
 }
 
 struct IllegalMoveError: Error, CustomStringConvertible {

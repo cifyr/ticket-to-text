@@ -83,13 +83,12 @@ export interface FinalScore {
 export function finalScores(state: GameState): FinalScore[] {
   const longest = state.players.map((_, p) => longestRoute(state, p));
   const maxLongest = Math.max(...longest);
-  // Bonus only if a single player holds the strict maximum.
-  const uniqueMax = longest.filter((l) => l === maxLongest).length === 1;
 
   return state.players.map((_, p) => {
     const routeScore = state.players[p].score;
     const tScore = ticketScore(state, p);
-    const longestBonus = uniqueMax && longest[p] === maxLongest ? LONGEST_ROUTE_BONUS : 0;
+    // Every player tied for the longest path gets the bonus.
+    const longestBonus = maxLongest > 0 && longest[p] === maxLongest ? LONGEST_ROUTE_BONUS : 0;
     return {
       routeScore,
       ticketScore: tScore,

@@ -35,7 +35,8 @@ extension PlayerView {
             lastActor: lastActor,
             lastSummary: lastSummary,
             lastClaimedRouteId: lastClaimedRouteId,
-            lastPublicDraw: lastPublicDraw
+            lastPublicDraw: lastPublicDraw,
+            pendingTickets: pendingTickets.map { PendingTickets(player: you ?? currentPlayer, drawn: $0) }
         )
     }
 }
