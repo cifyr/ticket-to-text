@@ -4,6 +4,7 @@ import SwiftUI
 // to expand their breakdown) and a swipe-over view of the final board.
 struct FinalScoreView: View {
     let state: GameState
+    var onNewGame: (() -> Void)? = nil
 
     @State private var page = 0
     @State private var expanded: Int?
@@ -40,6 +41,11 @@ struct FinalScoreView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                }
+
+                if let onNewGame {
+                    Button(action: onNewGame) { Label("New Game", systemImage: "plus.circle.fill").frame(maxWidth: .infinity) }
+                        .buttonStyle(BrassButtonStyle()).padding(.top, 4)
                 }
 
                 Text("Tap a player for their breakdown · swipe for the final map")

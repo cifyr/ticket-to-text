@@ -104,7 +104,7 @@ struct GameView: View {
                      onShowRoute: { rid in showLog = false; page = 0; withAnimation(.snappy) { centerRouteId = rid } })
         }
         .sheet(isPresented: $showResults) {
-            FinalScoreView(state: state)
+            FinalScoreView(state: state, onNewGame: { showResults = false; onNewGame() })
         }
         .sheet(isPresented: $showTickets) {
             TicketsSheet(tickets: state.players[mySeat].tickets,
@@ -395,11 +395,18 @@ struct GameView: View {
     }
 
     private var gameOverBar: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "flag.checkered").foregroundStyle(Palette.brass)
-            Text(statusText).font(.slab(17, .bold)).foregroundStyle(Palette.ink)
-            Spacer()
-            Button { showResults = true } label: { Text("Results") }.buttonStyle(BrassButtonStyle()).frame(width: 120)
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "flag.checkered").foregroundStyle(Palette.brass)
+                Text(statusText).font(.slab(17, .bold)).foregroundStyle(Palette.ink)
+                Spacer()
+            }
+            HStack(spacing: 10) {
+                Button { showResults = true } label: { Label("Results", systemImage: "list.number") }
+                    .buttonStyle(QuietButtonStyle())
+                Button(action: onNewGame) { Label("New Game", systemImage: "plus.circle.fill") }
+                    .buttonStyle(BrassButtonStyle())
+            }
         }
         .stub(Palette.parchmentDeep, corner: 14, padding: 12)
         .onAppear { showResults = true }
