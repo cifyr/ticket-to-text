@@ -129,7 +129,7 @@ struct FinalScoreView: View {
 
             let tickets = state.players[safe: player]?.tickets ?? []
             if !tickets.isEmpty {
-                Text("Your tickets").font(.sans(10, .bold)).tracking(1).textCase(.uppercase)
+                Text("Destination tickets").font(.sans(10, .bold)).tracking(1).textCase(.uppercase)
                     .foregroundStyle(Palette.sepiaLight).padding(.top, 4)
                 ForEach(tickets) { t in
                     let done = Scoring.connected(state.routes.filter { $0.claimedBy == player }, from: t.cityA, to: t.cityB)

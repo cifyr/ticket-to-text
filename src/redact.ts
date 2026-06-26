@@ -10,6 +10,7 @@ export interface PublicPlayer {
   handCount: number;   // count only — never the actual cards
   ticketCount: number; // count only — never the actual tickets
   joined: boolean;
+  tickets: Ticket[];   // empty during play; revealed for everyone once the game is over
 }
 
 // The redacted, per-player view sent over the wire. Crucially this contains NO
@@ -65,6 +66,7 @@ export function redactFor(state: GameState, seat: number | null): PlayerView {
       handCount: p.hand.length,
       ticketCount: p.tickets.length,
       joined: state.playerIDs[i] != null,
+      tickets: over ? p.tickets : [], // revealed only at game end
     })),
     routes: state.routes,
     market: state.market,

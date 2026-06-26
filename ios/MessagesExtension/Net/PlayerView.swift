@@ -10,6 +10,7 @@ struct PublicPlayer: Codable, Equatable {
     let handCount: Int
     let ticketCount: Int
     let joined: Bool
+    var tickets: [Ticket] = []   // revealed for everyone once the game is over
 }
 
 struct PlayerView: Codable {
