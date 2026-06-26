@@ -5971,7 +5971,9 @@ function redactFor(state, seat) {
       trains: p.trains,
       handCount: p.hand.length,
       ticketCount: p.tickets.length,
-      joined: state.playerIDs[i] != null
+      joined: state.playerIDs[i] != null,
+      tickets: over ? p.tickets : []
+      // revealed only at game end
     })),
     routes: state.routes,
     market: state.market,
