@@ -258,6 +258,16 @@ class MessagesViewController: MSMessagesAppViewController {
             } catch { self.serverError = "\(error)"; self.render(for: c) }
         }
     }
+    private func onLeaveServer(_ c: MSConversation) {
+        guard let gid = serverGameId else { return }
+        let me = localID(c)
+        stopPolling()
+        // Quit back to the start screen; tell the server so we leave the lobby.
+        lobby = nil; displayState = nil; serverGameId = nil
+        UserDefaults.standard.removeObject(forKey: "lastGameId")
+        render(for: c)
+        Task { [weak self] in _ = try? await self?.client.leave(gameId: gid, participantId: me) }
+    }
     private func onStartServer(_ c: MSConversation) {
         guard let gid = serverGameId else { return }
         Task { @MainActor [weak self] in
@@ -285,6 +295,7 @@ class MessagesViewController: MSMessagesAppViewController {
                 onRefresh: { [weak self] in self?.onRefreshServer(c) },
                 onInvite: { [weak self] in self?.onInviteServer(c) },
                 onSetName: { [weak self] n in self?.onSetNameServer(n, c) },
+                onLeave: { [weak self] in self?.onLeaveServer(c) },
                 onExpand: { [weak self] in self?.requestPresentationStyle(.expanded) })))
             return
         }
