@@ -1,7 +1,7 @@
 # Deploy only the self-contained app.js server (engine bundled in) + package.json.
 ios
 build
-build-device
+build-*
 .vercel
 .git
 .archive

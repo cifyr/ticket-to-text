@@ -15,3 +15,4 @@ node_modules/
 .DS_Store
 .vercel
 build-verify/
+build-sim/
