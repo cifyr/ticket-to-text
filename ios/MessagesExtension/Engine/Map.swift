@@ -145,9 +145,132 @@ enum GameMap {
     static let europe = GameMapDef(id: "europe", name: "Europe", cities: europeCities,
                                    routeDefs: europeRouteDefs, ticketDefs: europeTicketDefs)
 
+    // ---- Additional boards (mirror src/map.ts; order must match) -------------
+    static let germany = GameMapDef(id: "germany", name: "Germany", cities: [
+        City(name: "Hamburg", x: 0.42, y: 0.06), City(name: "Bremen", x: 0.30, y: 0.10),
+        City(name: "Hannover", x: 0.40, y: 0.16), City(name: "Berlin", x: 0.62, y: 0.12),
+        City(name: "Dortmund", x: 0.20, y: 0.20), City(name: "Essen", x: 0.15, y: 0.19),
+        City(name: "Cologne", x: 0.16, y: 0.25), City(name: "Frankfurt", x: 0.30, y: 0.30),
+        City(name: "Leipzig", x: 0.58, y: 0.22), City(name: "Dresden", x: 0.70, y: 0.24),
+        City(name: "Nuremberg", x: 0.50, y: 0.34), City(name: "Stuttgart", x: 0.33, y: 0.40),
+        City(name: "Munich", x: 0.52, y: 0.45), City(name: "Kiel", x: 0.40, y: 0.00),
+        City(name: "Rostock", x: 0.55, y: 0.03), City(name: "Mannheim", x: 0.27, y: 0.34),
+    ], routeDefs: [
+        (13, 0, 1, .gray), (14, 0, 2, .gray), (0, 1, 1, .red), (0, 2, 2, .blue),
+        (14, 3, 3, .yellow), (1, 4, 3, .green), (2, 3, 3, .orange), (2, 4, 2, .gray),
+        (4, 5, 1, .gray), (5, 6, 1, .yellow), (4, 7, 3, .white), (6, 7, 2, .blue),
+        (2, 8, 3, .purple), (3, 8, 2, .red), (8, 9, 1, .gray), (8, 10, 3, .green),
+        (7, 10, 2, .orange), (7, 15, 1, .gray), (15, 11, 1, .yellow), (11, 12, 3, .purple),
+        (10, 12, 2, .blue), (9, 12, 4, .black), (11, 10, 2, .white),
+    ], ticketDefs: [
+        (13, 12, 18), (0, 9, 12), (5, 12, 15), (3, 11, 13), (1, 10, 11),
+        (6, 9, 11), (14, 12, 17), (4, 8, 8), (7, 12, 9), (2, 9, 8),
+    ])
+
+    static let france = GameMapDef(id: "france", name: "France", cities: [
+        City(name: "Brest", x: 0.04, y: 0.18), City(name: "Paris", x: 0.34, y: 0.16),
+        City(name: "Lille", x: 0.40, y: 0.05), City(name: "Strasbourg", x: 0.66, y: 0.18),
+        City(name: "Nantes", x: 0.18, y: 0.28), City(name: "Bordeaux", x: 0.20, y: 0.42),
+        City(name: "Toulouse", x: 0.34, y: 0.48), City(name: "Marseille", x: 0.58, y: 0.46),
+        City(name: "Nice", x: 0.70, y: 0.44), City(name: "Lyon", x: 0.54, y: 0.34),
+        City(name: "Dijon", x: 0.54, y: 0.22), City(name: "Clermont", x: 0.44, y: 0.36),
+        City(name: "Orleans", x: 0.34, y: 0.24), City(name: "Rennes", x: 0.16, y: 0.20),
+        City(name: "Le Havre", x: 0.28, y: 0.10), City(name: "Montpellier", x: 0.46, y: 0.46),
+    ], routeDefs: [
+        (0, 13, 1, .gray), (13, 4, 1, .green), (13, 1, 3, .gray), (14, 1, 2, .blue),
+        (2, 1, 2, .red), (1, 12, 1, .yellow), (1, 10, 3, .purple), (2, 3, 4, .orange),
+        (10, 3, 2, .white), (12, 4, 2, .gray), (12, 11, 3, .blue), (4, 5, 3, .yellow),
+        (5, 6, 2, .green), (6, 15, 2, .orange), (11, 9, 2, .red), (10, 9, 2, .gray),
+        (9, 7, 3, .purple), (15, 7, 1, .blue), (7, 8, 1, .white), (11, 6, 3, .black),
+        (9, 8, 4, .yellow), (5, 11, 3, .gray),
+    ], ticketDefs: [
+        (0, 8, 20), (2, 7, 15), (5, 3, 13), (4, 8, 16), (14, 6, 12),
+        (1, 7, 11), (13, 3, 12), (0, 6, 14), (10, 8, 9), (12, 7, 10),
+    ])
+
+    static let uk = GameMapDef(id: "uk", name: "United Kingdom", cities: [
+        City(name: "Inverness", x: 0.30, y: 0.02), City(name: "Aberdeen", x: 0.40, y: 0.06),
+        City(name: "Glasgow", x: 0.28, y: 0.12), City(name: "Edinburgh", x: 0.38, y: 0.12),
+        City(name: "Belfast", x: 0.14, y: 0.18), City(name: "Dublin", x: 0.10, y: 0.24),
+        City(name: "Newcastle", x: 0.40, y: 0.18), City(name: "Manchester", x: 0.36, y: 0.26),
+        City(name: "Liverpool", x: 0.30, y: 0.26), City(name: "Birmingham", x: 0.40, y: 0.32),
+        City(name: "Cardiff", x: 0.30, y: 0.38), City(name: "Bristol", x: 0.38, y: 0.38),
+        City(name: "London", x: 0.52, y: 0.36), City(name: "Southampton", x: 0.46, y: 0.42),
+    ], routeDefs: [
+        (0, 1, 2, .gray), (0, 2, 2, .green), (1, 3, 2, .blue), (2, 3, 1, .gray),
+        (2, 4, 2, .yellow), (4, 5, 1, .gray), (3, 6, 2, .red), (6, 7, 2, .orange),
+        (7, 8, 1, .gray), (5, 8, 3, .white), (7, 9, 1, .purple), (8, 9, 2, .yellow),
+        (9, 10, 2, .green), (9, 12, 3, .red), (10, 11, 1, .gray), (11, 13, 2, .blue),
+        (11, 12, 2, .orange), (12, 13, 1, .white), (6, 9, 3, .black),
+    ], ticketDefs: [
+        (0, 12, 20), (5, 12, 16), (1, 13, 18), (2, 10, 12), (4, 9, 11),
+        (3, 12, 13), (0, 13, 22), (6, 11, 9), (7, 12, 8),
+    ])
+
+    static let switzerland = GameMapDef(id: "switzerland", name: "Switzerland", cities: [
+        City(name: "Basel", x: 0.20, y: 0.10), City(name: "Zurich", x: 0.46, y: 0.10),
+        City(name: "Bern", x: 0.26, y: 0.30), City(name: "Lucerne", x: 0.44, y: 0.24),
+        City(name: "Geneva", x: 0.06, y: 0.46), City(name: "Lausanne", x: 0.12, y: 0.40),
+        City(name: "Sion", x: 0.26, y: 0.46), City(name: "Interlaken", x: 0.34, y: 0.36),
+        City(name: "Lugano", x: 0.58, y: 0.50), City(name: "Chur", x: 0.66, y: 0.26),
+        City(name: "St Gallen", x: 0.62, y: 0.10), City(name: "Neuchatel", x: 0.18, y: 0.28),
+    ], routeDefs: [
+        (0, 1, 2, .gray), (0, 2, 2, .green), (1, 3, 1, .yellow), (1, 10, 2, .gray),
+        (10, 9, 2, .blue), (3, 9, 3, .red), (2, 3, 2, .orange), (2, 11, 1, .gray),
+        (11, 5, 1, .white), (5, 4, 1, .gray), (2, 7, 2, .purple), (7, 6, 2, .yellow),
+        (6, 4, 3, .green), (7, 8, 3, .blue), (9, 8, 3, .black), (3, 8, 4, .white),
+        (5, 6, 2, .red),
+    ], ticketDefs: [
+        (4, 10, 15), (0, 8, 14), (4, 9, 16), (5, 8, 13), (0, 4, 12),
+        (1, 8, 11), (11, 9, 10), (2, 8, 9),
+    ])
+
+    static let nordic = GameMapDef(id: "nordic", name: "Nordic Countries", cities: [
+        City(name: "Tromso", x: 0.40, y: 0.00), City(name: "Narvik", x: 0.46, y: 0.04),
+        City(name: "Trondheim", x: 0.28, y: 0.16), City(name: "Bergen", x: 0.12, y: 0.30),
+        City(name: "Oslo", x: 0.26, y: 0.34), City(name: "Stockholm", x: 0.46, y: 0.34),
+        City(name: "Gothenburg", x: 0.32, y: 0.42), City(name: "Copenhagen", x: 0.34, y: 0.50),
+        City(name: "Sundsvall", x: 0.46, y: 0.22), City(name: "Umea", x: 0.52, y: 0.16),
+        City(name: "Helsinki", x: 0.66, y: 0.32), City(name: "Oulu", x: 0.64, y: 0.14),
+        City(name: "Lahti", x: 0.64, y: 0.28), City(name: "Murmansk", x: 0.58, y: 0.00),
+    ], routeDefs: [
+        (0, 1, 1, .gray), (1, 13, 3, .white), (1, 2, 4, .gray), (2, 3, 2, .green),
+        (2, 4, 3, .yellow), (3, 4, 2, .gray), (4, 6, 1, .red), (6, 7, 1, .gray),
+        (4, 5, 3, .blue), (6, 5, 2, .orange), (2, 8, 3, .purple), (8, 5, 2, .white),
+        (8, 9, 1, .gray), (9, 11, 3, .yellow), (11, 13, 4, .black), (11, 12, 2, .green),
+        (12, 10, 1, .gray), (5, 10, 3, .red), (9, 12, 3, .blue),
+    ], ticketDefs: [
+        (7, 13, 22), (3, 10, 18), (0, 7, 20), (3, 5, 12), (4, 11, 14),
+        (7, 10, 13), (2, 10, 15), (0, 5, 16), (6, 11, 12),
+    ])
+
+    static let india = GameMapDef(id: "india", name: "India", cities: [
+        City(name: "Delhi", x: 0.34, y: 0.10), City(name: "Jaipur", x: 0.26, y: 0.16),
+        City(name: "Ahmedabad", x: 0.16, y: 0.28), City(name: "Mumbai", x: 0.16, y: 0.40),
+        City(name: "Pune", x: 0.20, y: 0.44), City(name: "Hyderabad", x: 0.34, y: 0.42),
+        City(name: "Bangalore", x: 0.30, y: 0.52), City(name: "Chennai", x: 0.40, y: 0.52),
+        City(name: "Kolkata", x: 0.62, y: 0.30), City(name: "Nagpur", x: 0.40, y: 0.32),
+        City(name: "Bhopal", x: 0.34, y: 0.26), City(name: "Kanpur", x: 0.46, y: 0.20),
+        City(name: "Patna", x: 0.56, y: 0.22), City(name: "Varanasi", x: 0.50, y: 0.24),
+        City(name: "Amritsar", x: 0.28, y: 0.04), City(name: "Lucknow", x: 0.44, y: 0.18),
+    ], routeDefs: [
+        (14, 0, 2, .gray), (0, 1, 1, .green), (0, 15, 2, .yellow), (15, 11, 1, .gray),
+        (11, 13, 2, .blue), (13, 12, 1, .gray), (12, 8, 3, .red), (1, 2, 3, .orange),
+        (1, 10, 3, .white), (10, 9, 2, .purple), (10, 11, 3, .gray), (2, 3, 2, .red),
+        (3, 4, 1, .gray), (4, 5, 2, .yellow), (9, 5, 2, .green), (9, 8, 4, .black),
+        (5, 6, 2, .blue), (6, 7, 1, .gray), (5, 7, 3, .orange), (8, 7, 4, .white),
+        (9, 13, 3, .yellow),
+    ], ticketDefs: [
+        (14, 7, 22), (3, 8, 18), (0, 6, 16), (2, 7, 17), (0, 8, 15),
+        (3, 7, 13), (1, 12, 14), (4, 8, 16), (10, 7, 12), (14, 3, 13),
+    ])
+
     // The registry. New maps are added here (and mirrored in src/map.ts).
-    static let maps: [String: GameMapDef] = [usa.id: usa, europe.id: europe]
-    static var all: [GameMapDef] { [usa, europe] }   // ordered for the picker
+    static let maps: [String: GameMapDef] = [
+        usa.id: usa, europe.id: europe, germany.id: germany, france.id: france,
+        uk.id: uk, switzerland.id: switzerland, nordic.id: nordic, india.id: india,
+    ]
+    static var all: [GameMapDef] { [usa, europe, germany, france, uk, switzerland, nordic, india] }
 
     static func def(_ mapId: String) -> GameMapDef { maps[mapId] ?? usa }
     static func cities(_ mapId: String) -> [City] { def(mapId).cities }

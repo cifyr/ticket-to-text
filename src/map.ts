@@ -256,10 +256,167 @@ const EUROPE: GameMapDef = {
   ticketDefs: EUROPE_TICKET_DEFS,
 };
 
+// ---- Additional boards (real cities, original networks; standard rules) ----
+// Compact, connected boards mirrored 1:1 in Swift GameMap (same order).
+const GERMANY: GameMapDef = {
+  id: "germany", name: "Germany",
+  cities: [
+    { name: "Hamburg", x: 0.42, y: 0.06 }, { name: "Bremen", x: 0.30, y: 0.10 },
+    { name: "Hannover", x: 0.40, y: 0.16 }, { name: "Berlin", x: 0.62, y: 0.12 },
+    { name: "Dortmund", x: 0.20, y: 0.20 }, { name: "Essen", x: 0.15, y: 0.19 },
+    { name: "Cologne", x: 0.16, y: 0.25 }, { name: "Frankfurt", x: 0.30, y: 0.30 },
+    { name: "Leipzig", x: 0.58, y: 0.22 }, { name: "Dresden", x: 0.70, y: 0.24 },
+    { name: "Nuremberg", x: 0.50, y: 0.34 }, { name: "Stuttgart", x: 0.33, y: 0.40 },
+    { name: "Munich", x: 0.52, y: 0.45 }, { name: "Kiel", x: 0.40, y: 0.00 },
+    { name: "Rostock", x: 0.55, y: 0.03 }, { name: "Mannheim", x: 0.27, y: 0.34 },
+  ],
+  routeDefs: [
+    [13, 0, 1, "gray"], [14, 0, 2, "gray"], [0, 1, 1, "red"], [0, 2, 2, "blue"],
+    [14, 3, 3, "yellow"], [1, 4, 3, "green"], [2, 3, 3, "orange"], [2, 4, 2, "gray"],
+    [4, 5, 1, "gray"], [5, 6, 1, "yellow"], [4, 7, 3, "white"], [6, 7, 2, "blue"],
+    [2, 8, 3, "purple"], [3, 8, 2, "red"], [8, 9, 1, "gray"], [8, 10, 3, "green"],
+    [7, 10, 2, "orange"], [7, 15, 1, "gray"], [15, 11, 1, "yellow"], [11, 12, 3, "purple"],
+    [10, 12, 2, "blue"], [9, 12, 4, "black"], [11, 10, 2, "white"],
+  ],
+  ticketDefs: [
+    [13, 12, 18], [0, 9, 12], [5, 12, 15], [3, 11, 13], [1, 10, 11],
+    [6, 9, 11], [14, 12, 17], [4, 8, 8], [7, 12, 9], [2, 9, 8],
+  ],
+};
+
+const FRANCE: GameMapDef = {
+  id: "france", name: "France",
+  cities: [
+    { name: "Brest", x: 0.04, y: 0.18 }, { name: "Paris", x: 0.34, y: 0.16 },
+    { name: "Lille", x: 0.40, y: 0.05 }, { name: "Strasbourg", x: 0.66, y: 0.18 },
+    { name: "Nantes", x: 0.18, y: 0.28 }, { name: "Bordeaux", x: 0.20, y: 0.42 },
+    { name: "Toulouse", x: 0.34, y: 0.48 }, { name: "Marseille", x: 0.58, y: 0.46 },
+    { name: "Nice", x: 0.70, y: 0.44 }, { name: "Lyon", x: 0.54, y: 0.34 },
+    { name: "Dijon", x: 0.54, y: 0.22 }, { name: "Clermont", x: 0.44, y: 0.36 },
+    { name: "Orleans", x: 0.34, y: 0.24 }, { name: "Rennes", x: 0.16, y: 0.20 },
+    { name: "Le Havre", x: 0.28, y: 0.10 }, { name: "Montpellier", x: 0.46, y: 0.46 },
+  ],
+  routeDefs: [
+    [0, 13, 1, "gray"], [13, 4, 1, "green"], [13, 1, 3, "gray"], [14, 1, 2, "blue"],
+    [2, 1, 2, "red"], [1, 12, 1, "yellow"], [1, 10, 3, "purple"], [2, 3, 4, "orange"],
+    [10, 3, 2, "white"], [12, 4, 2, "gray"], [12, 11, 3, "blue"], [4, 5, 3, "yellow"],
+    [5, 6, 2, "green"], [6, 15, 2, "orange"], [11, 9, 2, "red"], [10, 9, 2, "gray"],
+    [9, 7, 3, "purple"], [15, 7, 1, "blue"], [7, 8, 1, "white"], [11, 6, 3, "black"],
+    [9, 8, 4, "yellow"], [5, 11, 3, "gray"],
+  ],
+  ticketDefs: [
+    [0, 8, 20], [2, 7, 15], [5, 3, 13], [4, 8, 16], [14, 6, 12],
+    [1, 7, 11], [13, 3, 12], [0, 6, 14], [10, 8, 9], [12, 7, 10],
+  ],
+};
+
+const UK: GameMapDef = {
+  id: "uk", name: "United Kingdom",
+  cities: [
+    { name: "Inverness", x: 0.30, y: 0.02 }, { name: "Aberdeen", x: 0.40, y: 0.06 },
+    { name: "Glasgow", x: 0.28, y: 0.12 }, { name: "Edinburgh", x: 0.38, y: 0.12 },
+    { name: "Belfast", x: 0.14, y: 0.18 }, { name: "Dublin", x: 0.10, y: 0.24 },
+    { name: "Newcastle", x: 0.40, y: 0.18 }, { name: "Manchester", x: 0.36, y: 0.26 },
+    { name: "Liverpool", x: 0.30, y: 0.26 }, { name: "Birmingham", x: 0.40, y: 0.32 },
+    { name: "Cardiff", x: 0.30, y: 0.38 }, { name: "Bristol", x: 0.38, y: 0.38 },
+    { name: "London", x: 0.52, y: 0.36 }, { name: "Southampton", x: 0.46, y: 0.42 },
+  ],
+  routeDefs: [
+    [0, 1, 2, "gray"], [0, 2, 2, "green"], [1, 3, 2, "blue"], [2, 3, 1, "gray"],
+    [2, 4, 2, "yellow"], [4, 5, 1, "gray"], [3, 6, 2, "red"], [6, 7, 2, "orange"],
+    [7, 8, 1, "gray"], [5, 8, 3, "white"], [7, 9, 1, "purple"], [8, 9, 2, "yellow"],
+    [9, 10, 2, "green"], [9, 12, 3, "red"], [10, 11, 1, "gray"], [11, 13, 2, "blue"],
+    [11, 12, 2, "orange"], [12, 13, 1, "white"], [6, 9, 3, "black"],
+  ],
+  ticketDefs: [
+    [0, 12, 20], [5, 12, 16], [1, 13, 18], [2, 10, 12], [4, 9, 11],
+    [3, 12, 13], [0, 13, 22], [6, 11, 9], [7, 12, 8],
+  ],
+};
+
+const SWITZERLAND: GameMapDef = {
+  id: "switzerland", name: "Switzerland",
+  cities: [
+    { name: "Basel", x: 0.20, y: 0.10 }, { name: "Zurich", x: 0.46, y: 0.10 },
+    { name: "Bern", x: 0.26, y: 0.30 }, { name: "Lucerne", x: 0.44, y: 0.24 },
+    { name: "Geneva", x: 0.06, y: 0.46 }, { name: "Lausanne", x: 0.12, y: 0.40 },
+    { name: "Sion", x: 0.26, y: 0.46 }, { name: "Interlaken", x: 0.34, y: 0.36 },
+    { name: "Lugano", x: 0.58, y: 0.50 }, { name: "Chur", x: 0.66, y: 0.26 },
+    { name: "St Gallen", x: 0.62, y: 0.10 }, { name: "Neuchatel", x: 0.18, y: 0.28 },
+  ],
+  routeDefs: [
+    [0, 1, 2, "gray"], [0, 2, 2, "green"], [1, 3, 1, "yellow"], [1, 10, 2, "gray"],
+    [10, 9, 2, "blue"], [3, 9, 3, "red"], [2, 3, 2, "orange"], [2, 11, 1, "gray"],
+    [11, 5, 1, "white"], [5, 4, 1, "gray"], [2, 7, 2, "purple"], [7, 6, 2, "yellow"],
+    [6, 4, 3, "green"], [7, 8, 3, "blue"], [9, 8, 3, "black"], [3, 8, 4, "white"],
+    [5, 6, 2, "red"],
+  ],
+  ticketDefs: [
+    [4, 10, 15], [0, 8, 14], [4, 9, 16], [5, 8, 13], [0, 4, 12],
+    [1, 8, 11], [11, 9, 10], [2, 8, 9],
+  ],
+};
+
+const NORDIC: GameMapDef = {
+  id: "nordic", name: "Nordic Countries",
+  cities: [
+    { name: "Tromso", x: 0.40, y: 0.00 }, { name: "Narvik", x: 0.46, y: 0.04 },
+    { name: "Trondheim", x: 0.28, y: 0.16 }, { name: "Bergen", x: 0.12, y: 0.30 },
+    { name: "Oslo", x: 0.26, y: 0.34 }, { name: "Stockholm", x: 0.46, y: 0.34 },
+    { name: "Gothenburg", x: 0.32, y: 0.42 }, { name: "Copenhagen", x: 0.34, y: 0.50 },
+    { name: "Sundsvall", x: 0.46, y: 0.22 }, { name: "Umea", x: 0.52, y: 0.16 },
+    { name: "Helsinki", x: 0.66, y: 0.32 }, { name: "Oulu", x: 0.64, y: 0.14 },
+    { name: "Lahti", x: 0.64, y: 0.28 }, { name: "Murmansk", x: 0.58, y: 0.00 },
+  ],
+  routeDefs: [
+    [0, 1, 1, "gray"], [1, 13, 3, "white"], [1, 2, 4, "gray"], [2, 3, 2, "green"],
+    [2, 4, 3, "yellow"], [3, 4, 2, "gray"], [4, 6, 1, "red"], [6, 7, 1, "gray"],
+    [4, 5, 3, "blue"], [6, 5, 2, "orange"], [2, 8, 3, "purple"], [8, 5, 2, "white"],
+    [8, 9, 1, "gray"], [9, 11, 3, "yellow"], [11, 13, 4, "black"], [11, 12, 2, "green"],
+    [12, 10, 1, "gray"], [5, 10, 3, "red"], [9, 12, 3, "blue"],
+  ],
+  ticketDefs: [
+    [7, 13, 22], [3, 10, 18], [0, 7, 20], [3, 5, 12], [4, 11, 14],
+    [7, 10, 13], [2, 10, 15], [0, 5, 16], [6, 11, 12],
+  ],
+};
+
+const INDIA: GameMapDef = {
+  id: "india", name: "India",
+  cities: [
+    { name: "Delhi", x: 0.34, y: 0.10 }, { name: "Jaipur", x: 0.26, y: 0.16 },
+    { name: "Ahmedabad", x: 0.16, y: 0.28 }, { name: "Mumbai", x: 0.16, y: 0.40 },
+    { name: "Pune", x: 0.20, y: 0.44 }, { name: "Hyderabad", x: 0.34, y: 0.42 },
+    { name: "Bangalore", x: 0.30, y: 0.52 }, { name: "Chennai", x: 0.40, y: 0.52 },
+    { name: "Kolkata", x: 0.62, y: 0.30 }, { name: "Nagpur", x: 0.40, y: 0.32 },
+    { name: "Bhopal", x: 0.34, y: 0.26 }, { name: "Kanpur", x: 0.46, y: 0.20 },
+    { name: "Patna", x: 0.56, y: 0.22 }, { name: "Varanasi", x: 0.50, y: 0.24 },
+    { name: "Amritsar", x: 0.28, y: 0.04 }, { name: "Lucknow", x: 0.44, y: 0.18 },
+  ],
+  routeDefs: [
+    [14, 0, 2, "gray"], [0, 1, 1, "green"], [0, 15, 2, "yellow"], [15, 11, 1, "gray"],
+    [11, 13, 2, "blue"], [13, 12, 1, "gray"], [12, 8, 3, "red"], [1, 2, 3, "orange"],
+    [1, 10, 3, "white"], [10, 9, 2, "purple"], [10, 11, 3, "gray"], [2, 3, 2, "red"],
+    [3, 4, 1, "gray"], [4, 5, 2, "yellow"], [9, 5, 2, "green"], [9, 8, 4, "black"],
+    [5, 6, 2, "blue"], [6, 7, 1, "gray"], [5, 7, 3, "orange"], [8, 7, 4, "white"],
+    [9, 13, 3, "yellow"],
+  ],
+  ticketDefs: [
+    [14, 7, 22], [3, 8, 18], [0, 6, 16], [2, 7, 17], [0, 8, 15],
+    [3, 7, 13], [1, 12, 14], [4, 8, 16], [10, 7, 12], [14, 3, 13],
+  ],
+};
+
 // The registry. New maps are added here (and mirrored in Swift GameMap).
 export const MAPS: Record<string, GameMapDef> = {
   [USA.id]: USA,
   [EUROPE.id]: EUROPE,
+  [GERMANY.id]: GERMANY,
+  [FRANCE.id]: FRANCE,
+  [UK.id]: UK,
+  [SWITZERLAND.id]: SWITZERLAND,
+  [NORDIC.id]: NORDIC,
+  [INDIA.id]: INDIA,
 };
 
 export const DEFAULT_MAP_ID = "usa";
