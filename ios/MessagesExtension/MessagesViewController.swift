@@ -126,8 +126,8 @@ class MessagesViewController: MSMessagesAppViewController {
         if let url = c.selectedMessage?.url, let state = Serialize.decode(from: url) { return state }
         return freshLocal(c)
     }
-    private func freshLocal(_ c: MSConversation) -> GameState {
-        var g = Game.newGame(playerCount: localPlayerCount())
+    private func freshLocal(_ c: MSConversation, mapId: String = GameMap.defaultMapId) -> GameState {
+        var g = Game.newGame(playerCount: localPlayerCount(), mapId: mapId)
         g.playerIDs[0] = localID(c)
         if let nm = localName() { g.playerNames[0] = nm }
         return g
@@ -143,8 +143,9 @@ class MessagesViewController: MSMessagesAppViewController {
             stage(next, url: Serialize.encodedURL(next), in: c)
         } catch { print("local move failed:", error) }
     }
-    private func onNewGameLocal(_ c: MSConversation) {
-        displayState = freshLocal(c)
+    private func onNewGameLocal(_ c: MSConversation, mapId: String = GameMap.defaultMapId) {
+        lobby = nil
+        displayState = freshLocal(c, mapId: mapId)
         requestPresentationStyle(.expanded)
         render(for: c)
     }
@@ -221,6 +222,13 @@ class MessagesViewController: MSMessagesAppViewController {
         }
     }
     private func onNewGameServer(_ c: MSConversation, mapId: String = GameMap.defaultMapId) {
+        // The live server only hosts the default board. New maps are previewable
+        // now by running them locally (offline) until the server is updated.
+        if mapId != GameMap.defaultMapId {
+            serverGameId = nil; gameSession = nil; lobby = nil
+            onNewGameLocal(c, mapId: mapId)
+            return
+        }
         loading = true; render(for: c)
         Task { @MainActor [weak self] in
             guard let self else { return }

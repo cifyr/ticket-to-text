@@ -196,9 +196,70 @@ const USA: GameMapDef = {
   ticketDefs: USA_TICKET_DEFS,
 };
 
+// ---- Europe --------------------------------------------------------------
+// Real European cities at geographic positions with an original route network
+// (same stance as the USA board). Standard rules for now; map-specific rules
+// (ferries/tunnels/stations) are a later batch.
+// Coords normalized to fill the board box (~[0,0.95] x [0,0.5]).
+const EUROPE_CITIES: City[] = [
+  { name: "Lisbon", x: 0.00, y: 0.500 },     // 0
+  { name: "Madrid", x: 0.126, y: 0.450 },    // 1
+  { name: "Barcelona", x: 0.270, y: 0.390 }, // 2
+  { name: "Brest", x: 0.144, y: 0.210 },     // 3
+  { name: "Paris", x: 0.288, y: 0.240 },     // 4
+  { name: "Marseille", x: 0.360, y: 0.360 }, // 5
+  { name: "London", x: 0.216, y: 0.150 },    // 6
+  { name: "Edinburgh", x: 0.162, y: 0.030 }, // 7
+  { name: "Dublin", x: 0.054, y: 0.105 },    // 8
+  { name: "Amsterdam", x: 0.342, y: 0.165 }, // 9
+  { name: "Brussels", x: 0.306, y: 0.195 },  // 10
+  { name: "Frankfurt", x: 0.414, y: 0.195 }, // 11
+  { name: "Zurich", x: 0.396, y: 0.270 },    // 12
+  { name: "Venice", x: 0.486, y: 0.315 },    // 13
+  { name: "Rome", x: 0.540, y: 0.420 },      // 14
+  { name: "Munich", x: 0.468, y: 0.240 },    // 15
+  { name: "Berlin", x: 0.558, y: 0.150 },    // 16
+  { name: "Copenhagen", x: 0.522, y: 0.075 },// 17
+  { name: "Stockholm", x: 0.648, y: 0.000 }, // 18
+  { name: "Vienna", x: 0.612, y: 0.255 },    // 19
+  { name: "Prague", x: 0.540, y: 0.195 },    // 20
+  { name: "Warsaw", x: 0.702, y: 0.150 },    // 21
+  { name: "Budapest", x: 0.666, y: 0.285 },  // 22
+  { name: "Athens", x: 0.756, y: 0.495 },    // 23
+  { name: "Bucharest", x: 0.846, y: 0.330 }, // 24
+  { name: "Kyiv", x: 0.954, y: 0.195 },      // 25
+];
+
+const EUROPE_ROUTE_DEFS: [number, number, number, RoutePaint][] = [
+  [0, 1, 3, "orange"], [1, 2, 2, "yellow"], [2, 5, 4, "green"], [1, 3, 4, "black"],
+  [3, 4, 3, "gray"], [4, 5, 4, "gray"], [6, 3, 2, "red"], [6, 7, 4, "gray"],
+  [7, 8, 2, "gray"], [6, 9, 2, "yellow"], [6, 4, 2, "white"], [4, 10, 2, "yellow"],
+  [10, 9, 1, "blue"], [10, 11, 2, "blue"], [9, 11, 2, "red"], [4, 12, 3, "purple"],
+  [11, 12, 2, "white"], [11, 15, 2, "orange"], [12, 15, 2, "yellow"], [12, 13, 2, "green"],
+  [5, 12, 3, "gray"], [5, 14, 4, "red"], [13, 14, 2, "black"], [13, 15, 2, "blue"],
+  [15, 16, 3, "gray"], [15, 19, 2, "green"], [16, 20, 2, "gray"], [16, 11, 3, "black"],
+  [16, 17, 3, "red"], [17, 18, 3, "yellow"], [16, 21, 3, "gray"], [20, 19, 2, "purple"],
+  [19, 22, 1, "orange"], [22, 24, 4, "red"], [21, 22, 3, "white"], [21, 25, 4, "gray"],
+  [24, 25, 2, "white"], [24, 23, 4, "purple"], [22, 23, 5, "blue"], [13, 19, 2, "gray"],
+];
+
+const EUROPE_TICKET_DEFS: [number, number, number][] = [
+  [0, 16, 21], [7, 14, 20], [8, 18, 22], [1, 15, 13], [6, 19, 12], [5, 25, 20],
+  [2, 11, 8], [17, 23, 18], [21, 14, 12], [4, 24, 16], [9, 22, 10], [3, 13, 11],
+];
+
+const EUROPE: GameMapDef = {
+  id: "europe",
+  name: "Europe",
+  cities: EUROPE_CITIES,
+  routeDefs: EUROPE_ROUTE_DEFS,
+  ticketDefs: EUROPE_TICKET_DEFS,
+};
+
 // The registry. New maps are added here (and mirrored in Swift GameMap).
 export const MAPS: Record<string, GameMapDef> = {
   [USA.id]: USA,
+  [EUROPE.id]: EUROPE,
 };
 
 export const DEFAULT_MAP_ID = "usa";

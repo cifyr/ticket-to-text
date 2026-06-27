@@ -110,9 +110,44 @@ enum GameMap {
     static let usa = GameMapDef(id: "usa", name: "USA", cities: usaCities,
                                 routeDefs: usaRouteDefs, ticketDefs: usaTicketDefs)
 
+    // ---- Europe (mirror of src/map.ts; route/ticket order must match) --------
+    private static let europeCities: [City] = [
+        City(name: "Lisbon", x: 0.00, y: 0.500), City(name: "Madrid", x: 0.126, y: 0.450),
+        City(name: "Barcelona", x: 0.270, y: 0.390), City(name: "Brest", x: 0.144, y: 0.210),
+        City(name: "Paris", x: 0.288, y: 0.240), City(name: "Marseille", x: 0.360, y: 0.360),
+        City(name: "London", x: 0.216, y: 0.150), City(name: "Edinburgh", x: 0.162, y: 0.030),
+        City(name: "Dublin", x: 0.054, y: 0.105), City(name: "Amsterdam", x: 0.342, y: 0.165),
+        City(name: "Brussels", x: 0.306, y: 0.195), City(name: "Frankfurt", x: 0.414, y: 0.195),
+        City(name: "Zurich", x: 0.396, y: 0.270), City(name: "Venice", x: 0.486, y: 0.315),
+        City(name: "Rome", x: 0.540, y: 0.420), City(name: "Munich", x: 0.468, y: 0.240),
+        City(name: "Berlin", x: 0.558, y: 0.150), City(name: "Copenhagen", x: 0.522, y: 0.075),
+        City(name: "Stockholm", x: 0.648, y: 0.000), City(name: "Vienna", x: 0.612, y: 0.255),
+        City(name: "Prague", x: 0.540, y: 0.195), City(name: "Warsaw", x: 0.702, y: 0.150),
+        City(name: "Budapest", x: 0.666, y: 0.285), City(name: "Athens", x: 0.756, y: 0.495),
+        City(name: "Bucharest", x: 0.846, y: 0.330), City(name: "Kyiv", x: 0.954, y: 0.195),
+    ]
+    private static let europeRouteDefs: [(Int, Int, Int, RoutePaint)] = [
+        (0, 1, 3, .orange), (1, 2, 2, .yellow), (2, 5, 4, .green), (1, 3, 4, .black),
+        (3, 4, 3, .gray), (4, 5, 4, .gray), (6, 3, 2, .red), (6, 7, 4, .gray),
+        (7, 8, 2, .gray), (6, 9, 2, .yellow), (6, 4, 2, .white), (4, 10, 2, .yellow),
+        (10, 9, 1, .blue), (10, 11, 2, .blue), (9, 11, 2, .red), (4, 12, 3, .purple),
+        (11, 12, 2, .white), (11, 15, 2, .orange), (12, 15, 2, .yellow), (12, 13, 2, .green),
+        (5, 12, 3, .gray), (5, 14, 4, .red), (13, 14, 2, .black), (13, 15, 2, .blue),
+        (15, 16, 3, .gray), (15, 19, 2, .green), (16, 20, 2, .gray), (16, 11, 3, .black),
+        (16, 17, 3, .red), (17, 18, 3, .yellow), (16, 21, 3, .gray), (20, 19, 2, .purple),
+        (19, 22, 1, .orange), (22, 24, 4, .red), (21, 22, 3, .white), (21, 25, 4, .gray),
+        (24, 25, 2, .white), (24, 23, 4, .purple), (22, 23, 5, .blue), (13, 19, 2, .gray),
+    ]
+    private static let europeTicketDefs: [(Int, Int, Int)] = [
+        (0, 16, 21), (7, 14, 20), (8, 18, 22), (1, 15, 13), (6, 19, 12), (5, 25, 20),
+        (2, 11, 8), (17, 23, 18), (21, 14, 12), (4, 24, 16), (9, 22, 10), (3, 13, 11),
+    ]
+    static let europe = GameMapDef(id: "europe", name: "Europe", cities: europeCities,
+                                   routeDefs: europeRouteDefs, ticketDefs: europeTicketDefs)
+
     // The registry. New maps are added here (and mirrored in src/map.ts).
-    static let maps: [String: GameMapDef] = [usa.id: usa]
-    static var all: [GameMapDef] { [usa] }   // ordered for the picker
+    static let maps: [String: GameMapDef] = [usa.id: usa, europe.id: europe]
+    static var all: [GameMapDef] { [usa, europe] }   // ordered for the picker
 
     static func def(_ mapId: String) -> GameMapDef { maps[mapId] ?? usa }
     static func cities(_ mapId: String) -> [City] { def(mapId).cities }
