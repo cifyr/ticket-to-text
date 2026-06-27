@@ -343,12 +343,14 @@ enum BoardGeometry {
     ]
 
     static func drawUSMap(in ctx: GraphicsContext, size: CGSize, mapId: String) {
-        // Only the USA board has a geographic outline so far; other maps render on
-        // the plain parchment until their outline is added (Batch 2+).
-        guard mapId == "usa" else { return }
+        // USA has a hand-tuned outline (US + Canada + state lines); every other
+        // region uses a generated Natural Earth outline (see MapOutlines.swift).
+        // Maps with no outline yet (city/lake/state boards) render on parchment.
+        let hasGenerated = mapOutlines[mapId] != nil
+        guard mapId == "usa" || hasGenerated else { return }
         var c = ctx
-        // Mask the land with a vertical alpha gradient so Canada fades out toward
-        // the top edge instead of ending in a hard cut (also crops the off-frame north).
+        // Mask the land with a vertical alpha gradient so the north edge fades out
+        // instead of ending in a hard cut (also crops the off-frame north).
         let fadeH = size.height * 0.15
         c.clipToLayer { layer in
             layer.fill(Path(CGRect(x: 0, y: fadeH, width: size.width, height: size.height - fadeH)),
@@ -358,16 +360,20 @@ enum BoardGeometry {
                                              startPoint: CGPoint(x: 0, y: 0),
                                              endPoint: CGPoint(x: 0, y: fadeH)))
         }
-        fillLand(canadaOutline, in: c, size: size)
-        fillLand(usOutline, in: c, size: size)
-        for ring in stateOutlines {   // faint interior state lines
-            var path = Path()
-            for (i, pt) in ring.enumerated() {
-                let p = point(pt.0, pt.1, in: size)
-                if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+        if mapId == "usa" {
+            fillLand(canadaOutline, in: c, size: size)
+            fillLand(usOutline, in: c, size: size)
+            for ring in stateOutlines {   // faint interior state lines
+                var path = Path()
+                for (i, pt) in ring.enumerated() {
+                    let p = point(pt.0, pt.1, in: size)
+                    if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+                }
+                path.closeSubpath()
+                c.stroke(path, with: .color(Palette.sepia.opacity(0.16)), lineWidth: 0.6)
             }
-            path.closeSubpath()
-            c.stroke(path, with: .color(Palette.sepia.opacity(0.16)), lineWidth: 0.6)
+        } else if let rings = mapOutlines[mapId] {
+            for ring in rings { fillLand(ring, in: c, size: size) }
         }
     }
 
