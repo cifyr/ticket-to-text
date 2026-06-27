@@ -6,6 +6,7 @@ struct TicketsSheet: View {
     let myRoutes: [Route]
     let ticketsLeft: Int
     let canDraw: Bool
+    var mapId: String = GameMap.defaultMapId
     let onDraw: () -> Void          // draw a fresh batch of destination tickets (uses your turn)
     let onShow: (Ticket) -> Void   // highlight this ticket on the map and close
 
@@ -60,12 +61,12 @@ struct TicketsSheet: View {
     private func ticketStub(_ t: Ticket, done: Bool) -> some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 5) {
-                Text(GameMap.cities[t.cityA].name).font(.slab(18, .bold)).foregroundStyle(Palette.ink)
+                Text(GameMap.cities(mapId)[t.cityA].name).font(.slab(18, .bold)).foregroundStyle(Palette.ink)
                 HStack(spacing: 8) {
                     Text("→").font(.slab(15, .bold)).foregroundStyle(Palette.brass)
                     DashedRule()
                 }
-                Text(GameMap.cities[t.cityB].name).font(.slab(18, .bold)).foregroundStyle(Palette.ink)
+                Text(GameMap.cities(mapId)[t.cityB].name).font(.slab(18, .bold)).foregroundStyle(Palette.ink)
                 Text(done ? "Route completed" : "In progress")
                     .font(.sans(10.5, .bold)).tracking(0.8).textCase(.uppercase)
                     .foregroundStyle(done ? Palette.success : Palette.sepiaLight)

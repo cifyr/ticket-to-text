@@ -20,8 +20,9 @@ struct GameClient {
     }
 
     // --- Lobby ---
-    func createLobby(hostId: String, hostName: String?, maxPlayers: Int = 4) async throws -> LobbyCreateResponse {
-        var body: [String: Any] = ["hostId": hostId, "maxPlayers": maxPlayers]
+    func createLobby(hostId: String, hostName: String?, maxPlayers: Int = 4,
+                     mapId: String = "usa") async throws -> LobbyCreateResponse {
+        var body: [String: Any] = ["hostId": hostId, "maxPlayers": maxPlayers, "mapId": mapId]
         if let hostName { body["hostName"] = hostName }
         return try await send("create-lobby", method: "POST", query: [:], body: body)
     }

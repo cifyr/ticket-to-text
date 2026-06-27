@@ -8,6 +8,7 @@ struct RouteDetailCard: View {
     let trains: Int
     let affordable: Bool
     var ownerName: String? = nil
+    var mapId: String = GameMap.defaultMapId
     let onClaim: () -> Void
     let onClose: () -> Void
 
@@ -16,7 +17,7 @@ struct RouteDetailCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Text(GameMap.label(route)).font(.slab(16, .bold)).foregroundStyle(Palette.ink).lineLimit(2)
+                Text(GameMap.label(route, mapId)).font(.slab(16, .bold)).foregroundStyle(Palette.ink).lineLimit(2)
                 Spacer(minLength: 4)
                 Button(action: onClose) {
                     Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).foregroundStyle(Palette.sepia)

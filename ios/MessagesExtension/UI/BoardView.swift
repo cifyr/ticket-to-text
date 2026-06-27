@@ -21,7 +21,7 @@ struct BoardView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let pts = BoardGeometry.positions(in: geo.size)
+            let pts = BoardGeometry.positions(in: geo.size, mapId: state.mapId)
             ZStack {
                 Canvas { ctx, size in
                     BoardGeometry.draw(state, in: ctx, points: pts, size: size,
@@ -168,8 +168,9 @@ private struct CenteredRouteBoard: View {
         guard let r = state.routes.first(where: { $0.id == routeId }) else {
             return CGPoint(x: size.width / 2, y: size.height / 2)
         }
-        let a = BoardGeometry.point(GameMap.cities[r.cityA].x, GameMap.cities[r.cityA].y, in: size)
-        let b = BoardGeometry.point(GameMap.cities[r.cityB].x, GameMap.cities[r.cityB].y, in: size)
+        let cs = GameMap.cities(state.mapId)
+        let a = BoardGeometry.point(cs[r.cityA].x, cs[r.cityA].y, in: size)
+        let b = BoardGeometry.point(cs[r.cityB].x, cs[r.cityB].y, in: size)
         return CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
     }
 }
@@ -191,7 +192,7 @@ private struct DestinationBoard: View {
                           claimable: { _ in false }, onSelect: { _ in },
                           showNames: true, nameCities: [ticket.cityA, ticket.cityB], style: .thin)
                     .frame(width: fitW, height: fitH)
-                DestinationLine(ticket: ticket, size: frame)
+                DestinationLine(ticket: ticket, size: frame, mapId: state.mapId)
                     .frame(width: fitW, height: fitH)
             }
             .frame(width: geo.size.width, height: geo.size.height)
@@ -202,11 +203,13 @@ private struct DestinationBoard: View {
 private struct DestinationLine: View {
     let ticket: Ticket
     let size: CGSize
+    let mapId: String
     @State private var progress: CGFloat = 0
 
     var body: some View {
-        let a = BoardGeometry.point(GameMap.cities[ticket.cityA].x, GameMap.cities[ticket.cityA].y, in: size)
-        let b = BoardGeometry.point(GameMap.cities[ticket.cityB].x, GameMap.cities[ticket.cityB].y, in: size)
+        let cs = GameMap.cities(mapId)
+        let a = BoardGeometry.point(cs[ticket.cityA].x, cs[ticket.cityA].y, in: size)
+        let b = BoardGeometry.point(cs[ticket.cityB].x, cs[ticket.cityB].y, in: size)
         ZStack {
             Path { p in p.move(to: a); p.addLine(to: b) }
                 .trim(from: 0, to: progress)
@@ -239,8 +242,8 @@ enum BoardGeometry {
         return CGPoint(x: ox + CGFloat(nx) * s, y: oy + CGFloat(ny) * s)
     }
 
-    static func positions(in size: CGSize) -> [CGPoint] {
-        GameMap.cities.map { point($0.x, $0.y, in: size) }
+    static func positions(in size: CGSize, mapId: String) -> [CGPoint] {
+        GameMap.cities(mapId).map { point($0.x, $0.y, in: size) }
     }
 
     // Faint actual continental-US outline behind the routes so the board reads as
@@ -339,7 +342,10 @@ enum BoardGeometry {
         (0.5592, -0.4104), (0.5915, -0.4059),
     ]
 
-    static func drawUSMap(in ctx: GraphicsContext, size: CGSize) {
+    static func drawUSMap(in ctx: GraphicsContext, size: CGSize, mapId: String) {
+        // Only the USA board has a geographic outline so far; other maps render on
+        // the plain parchment until their outline is added (Batch 2+).
+        guard mapId == "usa" else { return }
         var c = ctx
         // Mask the land with a vertical alpha gradient so Canada fades out toward
         // the top edge instead of ending in a hard cut (also crops the off-frame north).
@@ -386,7 +392,7 @@ enum BoardGeometry {
                      style: BoardStyle,
                      focusedOwner: Int?,
                      highlightClaimable: (Route) -> Bool) {
-        if style == .thin { drawUSMap(in: ctx, size: size) }   // map only on the zoomed-out view
+        if style == .thin { drawUSMap(in: ctx, size: size, mapId: state.mapId) }   // map only on the zoomed-out view
         // Group routes by city pair so a double route draws as two offset parallel
         // tracks, and a track locked by its claimed sibling can be faded out.
         var pairs: [Int: [Int]] = [:]
@@ -453,7 +459,7 @@ enum BoardGeometry {
             ctx.stroke(Path(ellipseIn: rect), with: .color(Color(hex: 0x5E430C)), lineWidth: 1.5)
             let labelThis = showNames && (nameCities == nil || nameCities!.contains(i))
             if labelThis {
-                drawCityName(GameMap.cities[i].name, at: CGPoint(x: p.x, y: p.y - 17), in: ctx, alpha: dotAlpha)
+                drawCityName(GameMap.cities(state.mapId)[i].name, at: CGPoint(x: p.x, y: p.y - 17), in: ctx, alpha: dotAlpha)
             }
         }
     }

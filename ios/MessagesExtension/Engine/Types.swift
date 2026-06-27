@@ -45,6 +45,7 @@ struct LogEntry: Codable, Equatable {
 }
 
 struct GameState: Codable, Equatable {
+    var mapId: String = GameMap.defaultMapId
     var routes: [Route]
     var players: [PlayerState]
     var currentPlayer: Int

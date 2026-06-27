@@ -218,3 +218,19 @@ test("endGame: rejected before the game has started (lobby)", async () => {
   const { gameId } = await createLobby(store, { hostId: "A", hostName: "Alice" });
   await assert.rejects(() => endGame(store, gameId, "A"), /not started/);
 });
+
+test("map selection: lobby's mapId threads into the started game's view; unknown falls back", async () => {
+  const store = new MemoryStore();
+  const { gameId } = await createLobby(store, { hostId: "A", hostName: "Alice", mapId: "usa" });
+  await setReady(store, gameId, "A", true);
+  await setReady(store, gameId, "B", true, "Bob");
+  const game = await startLobby(store, gameId, "A");
+  if (game.phase !== "playing") { assert.fail("expected playing"); return; }
+  assert.equal(game.mapId, "usa", "started game reports its map");
+
+  // Unknown ids are validated against the registry and fall back to the default.
+  const { gameId: g2 } = await createLobby(store, { hostId: "C", mapId: "atlantis" });
+  const v2 = await getView(store, g2, "C");
+  if (v2.phase !== "lobby") { assert.fail("expected lobby"); return; }
+  assert.equal(v2.mapId, "usa", "invalid map falls back to the default");
+});

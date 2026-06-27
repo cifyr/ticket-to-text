@@ -142,7 +142,7 @@ struct FinalScoreView: View {
                     HStack(spacing: 6) {
                         Image(systemName: done ? "checkmark.circle.fill" : "xmark.circle.fill")
                             .font(.system(size: 12)).foregroundStyle(done ? Palette.success : Palette.danger)
-                        Text("\(GameMap.cities[t.cityA].name) → \(GameMap.cities[t.cityB].name)")
+                        Text("\(GameMap.cities(state.mapId)[t.cityA].name) → \(GameMap.cities(state.mapId)[t.cityB].name)")
                             .font(.sans(11)).foregroundStyle(Palette.ink)
                         Spacer(minLength: 4)
                         Text(done ? "+\(t.points)" : "-\(t.points)").font(.sans(11, .bold))

@@ -49,11 +49,11 @@ function refillMarket(state: GameState): void {
   }
 }
 
-export function newGame(seed = 0xc0ffee, playerCount = 2): GameState {
+export function newGame(seed = 0xc0ffee, playerCount = 2, mapId = "usa"): GameState {
   const count = Math.max(2, Math.min(4, playerCount));
   const deck = buildDeck(seed);
   const draw = (n: number): Card[] => deck.splice(deck.length - n, n);
-  const tDeck = shuffle(ticketDeck(), mulberry32((seed ^ 0x9e3779b9) >>> 0));
+  const tDeck = shuffle(ticketDeck(mapId), mulberry32((seed ^ 0x9e3779b9) >>> 0));
 
   const players: PlayerState[] = [];
   for (let i = 0; i < count; i++) {
@@ -66,7 +66,8 @@ export function newGame(seed = 0xc0ffee, playerCount = 2): GameState {
   }
 
   const state: GameState = {
-    routes: mapRoutes(),
+    mapId,
+    routes: mapRoutes(mapId),
     players,
     currentPlayer: 0,
     deck,
@@ -273,7 +274,7 @@ export function applyMove(state: GameState, move: Move): GameState {
     }
     case "claim": {
       const route = applyClaim(next, move.routeId, move.color);
-      summary = `claimed ${routeLabel(route)}`;
+      summary = `claimed ${routeLabel(route, next.mapId)}`;
       claimedId = route.id;
       break;
     }

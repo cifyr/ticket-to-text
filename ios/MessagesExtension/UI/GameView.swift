@@ -39,7 +39,7 @@ struct GameView: View {
     private func routeIdForLog(_ entry: LogEntry) -> Int? {
         guard entry.text.hasPrefix("claimed ") else { return nil }
         let label = String(entry.text.dropFirst("claimed ".count))
-        return state.routes.first(where: { GameMap.label($0) == label })?.id
+        return state.routes.first(where: { GameMap.label($0, state.mapId) == label })?.id
     }
 
     private var mySeat: Int {
@@ -109,7 +109,7 @@ struct GameView: View {
         .sheet(isPresented: $showTickets) {
             TicketsSheet(tickets: state.players[mySeat].tickets,
                          myRoutes: state.routes.filter { $0.claimedBy == mySeat },
-                         ticketsLeft: state.ticketDeck.count, canDraw: effectiveCanAct,
+                         ticketsLeft: state.ticketDeck.count, canDraw: effectiveCanAct, mapId: state.mapId,
                          onDraw: {
                              showTickets = false
                              apply(.drawTickets, caption: "drew destination tickets")
@@ -286,9 +286,9 @@ struct GameView: View {
                     RouteDetailCard(
                         route: route, hand: state.players[mySeat].hand, trains: state.players[mySeat].trains,
                         affordable: effectiveCanAct && Game.canClaim(state, route, player: mySeat),
-                        ownerName: route.claimedBy.map { name($0) },
+                        ownerName: route.claimedBy.map { name($0) }, mapId: state.mapId,
                         onClaim: {
-                            apply(.claim(routeId: route.id, color: nil), caption: "claimed \(GameMap.label(route))")
+                            apply(.claim(routeId: route.id, color: nil), caption: "claimed \(GameMap.label(route, state.mapId))")
                             withAnimation { selectedRouteId = nil }
                         },
                         onClose: { withAnimation { selectedRouteId = nil } })
@@ -582,9 +582,9 @@ struct TicketChooserView: View {
                 .font(.system(size: 20)).foregroundStyle(on ? Palette.success : Palette.sepiaLight)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
-                    Text(GameMap.cities[t.cityA].name).font(.slab(15, .bold)).foregroundStyle(Palette.ink)
+                    Text(GameMap.cities(state.mapId)[t.cityA].name).font(.slab(15, .bold)).foregroundStyle(Palette.ink)
                     Image(systemName: "arrow.right").font(.system(size: 11, weight: .bold)).foregroundStyle(Palette.brass)
-                    Text(GameMap.cities[t.cityB].name).font(.slab(15, .bold)).foregroundStyle(Palette.ink)
+                    Text(GameMap.cities(state.mapId)[t.cityB].name).font(.slab(15, .bold)).foregroundStyle(Palette.ink)
                 }
                 if done {
                     Text("Already connected").font(.sans(10, .bold)).textCase(.uppercase).foregroundStyle(Palette.success)

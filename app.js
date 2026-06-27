@@ -5267,7 +5267,7 @@ var IllegalMoveError = class extends Error {
 };
 
 // src/map.ts
-var CITIES = [
+var USA_CITIES = [
   { name: "Vancouver", x: 0.06, y: 0.07 },
   // 0
   { name: "Calgary", x: 0.17, y: 0.05 },
@@ -5341,8 +5341,7 @@ var CITIES = [
   { name: "Miami", x: 0.85, y: 0.67 }
   // 35
 ];
-var CITY_NAMES = CITIES.map((c) => c.name);
-var ROUTE_DEFS = [
+var USA_ROUTE_DEFS = [
   [0, 8, 1, "red"],
   // Vancouver - Seattle
   [0, 1, 3, "gray"],
@@ -5530,17 +5529,7 @@ var ROUTE_DEFS = [
   [34, 27, 4, "green"]
   // New Orleans - Atlanta (2)      pairs with yellow
 ];
-function mapRoutes() {
-  return ROUTE_DEFS.map(([cityA, cityB, length, color], id) => ({
-    id,
-    cityA,
-    cityB,
-    length,
-    color,
-    claimedBy: null
-  }));
-}
-var TICKET_DEFS = [
+var USA_TICKET_DEFS = [
   [8, 7, 22],
   // Seattle - New York
   [29, 35, 20],
@@ -5602,11 +5591,37 @@ var TICKET_DEFS = [
   [15, 22, 7]
   // Omaha - Raleigh
 ];
-function ticketDeck() {
-  return TICKET_DEFS.map(([cityA, cityB, points], id) => ({ id, cityA, cityB, points }));
+var USA = {
+  id: "usa",
+  name: "USA",
+  cities: USA_CITIES,
+  routeDefs: USA_ROUTE_DEFS,
+  ticketDefs: USA_TICKET_DEFS
+};
+var MAPS = {
+  [USA.id]: USA
+};
+var DEFAULT_MAP_ID = "usa";
+function getMap(mapId) {
+  return MAPS[mapId] ?? MAPS[DEFAULT_MAP_ID];
 }
-function routeLabel(route) {
-  return `${CITIES[route.cityA].name} \u2192 ${CITIES[route.cityB].name}`;
+var CITY_NAMES = USA_CITIES.map((c) => c.name);
+function mapRoutes(mapId = DEFAULT_MAP_ID) {
+  return getMap(mapId).routeDefs.map(([cityA, cityB, length, color], id) => ({
+    id,
+    cityA,
+    cityB,
+    length,
+    color,
+    claimedBy: null
+  }));
+}
+function ticketDeck(mapId = DEFAULT_MAP_ID) {
+  return getMap(mapId).ticketDefs.map(([cityA, cityB, points], id) => ({ id, cityA, cityB, points }));
+}
+function routeLabel(route, mapId = DEFAULT_MAP_ID) {
+  const c = getMap(mapId).cities;
+  return `${c[route.cityA].name} \u2192 ${c[route.cityB].name}`;
 }
 
 // src/scoring.ts
@@ -5738,11 +5753,11 @@ function refillMarket(state) {
     state.market.push(c);
   }
 }
-function newGame(seed = 12648430, playerCount = 2) {
+function newGame(seed = 12648430, playerCount = 2, mapId = "usa") {
   const count = Math.max(2, Math.min(4, playerCount));
   const deck = buildDeck(seed);
   const draw = (n) => deck.splice(deck.length - n, n);
-  const tDeck = shuffle(ticketDeck(), mulberry32((seed ^ 2654435769) >>> 0));
+  const tDeck = shuffle(ticketDeck(mapId), mulberry32((seed ^ 2654435769) >>> 0));
   const players = [];
   for (let i = 0; i < count; i++) {
     players.push({
@@ -5753,7 +5768,8 @@ function newGame(seed = 12648430, playerCount = 2) {
     });
   }
   const state = {
-    routes: mapRoutes(),
+    mapId,
+    routes: mapRoutes(mapId),
     players,
     currentPlayer: 0,
     deck,
@@ -5936,7 +5952,7 @@ function applyMove(state, move) {
     }
     case "claim": {
       const route = applyClaim(next, move.routeId, move.color);
-      summary = `claimed ${routeLabel(route)}`;
+      summary = `claimed ${routeLabel(route, next.mapId)}`;
       claimedId = route.id;
       break;
     }
@@ -6003,6 +6019,7 @@ function redactFor(state, seat) {
     phase: "playing",
     you: seat,
     currentPlayer: state.currentPlayer,
+    mapId: state.mapId,
     over,
     players: state.players.map((p, i) => ({
       name: state.playerNames[i] ?? null,
@@ -6066,6 +6083,7 @@ function lobbyViewFor(lobby, participantId) {
     phase: "lobby",
     you: youIdx === -1 ? null : youIdx,
     maxPlayers: lobby.maxPlayers,
+    mapId: lobby.mapId,
     members: lobby.members.map((m, i) => ({ name: m.name, ready: m.ready, isHost: i === 0 })),
     canStart: lobby.members.filter((m) => m.ready).length >= 2
     // only readied players are in
@@ -6077,7 +6095,9 @@ async function createLobby(store2, opts) {
     members: [{ id: opts.hostId, name: opts.hostName ?? null, ready: false }],
     maxPlayers,
     hostId: opts.hostId,
-    seed: opts.seed ?? Math.floor(Math.random() * 4294967295)
+    seed: opts.seed ?? Math.floor(Math.random() * 4294967295),
+    mapId: getMap(opts.mapId ?? "usa").id
+    // validated against the registry
   };
   const gameId = opts.gameId ?? cryptoId();
   await store2.set(gameId, { kind: "lobby", lobby });
@@ -6133,7 +6153,7 @@ async function startLobby(store2, gameId, participantId) {
     const ready = lobby.members.filter((m) => m.ready);
     if (ready.length < 2) throw new BadState("need at least 2 ready players");
     if (!ready.some((m) => m.id === lobby.hostId)) throw new BadState("host must be ready to start");
-    const game = newGame(lobby.seed, ready.length);
+    const game = newGame(lobby.seed, ready.length, lobby.mapId);
     ready.forEach((m, i) => {
       game.playerIDs[i] = m.id;
       game.playerNames[i] = m.name;
@@ -6145,7 +6165,7 @@ async function startLobby(store2, gameId, participantId) {
 }
 async function createGame(store2, opts) {
   const seed = opts.seed ?? Math.floor(Math.random() * 4294967295);
-  const state = newGame(seed, opts.playerCount);
+  const state = newGame(seed, opts.playerCount, getMap(opts.mapId ?? "usa").id);
   state.playerIDs[0] = opts.hostId;
   if (opts.hostName) state.playerNames[0] = opts.hostName;
   const gameId = opts.gameId ?? cryptoId();

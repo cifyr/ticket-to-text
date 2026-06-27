@@ -36,14 +36,14 @@ enum Game {
         }
     }
 
-    static func newGame(seed: UInt32 = 0xC0FFEE, playerCount: Int = 2) -> GameState {
+    static func newGame(seed: UInt32 = 0xC0FFEE, playerCount: Int = 2, mapId: String = GameMap.defaultMapId) -> GameState {
         let count = max(2, min(4, playerCount))
         var deck = buildDeck(seed: seed)
         func draw(_ n: Int) -> [Card] {
             let dealt = Array(deck.suffix(n)); deck.removeLast(n); return dealt
         }
         var rng = Mulberry32(seed: seed ^ 0x9E3779B9)
-        var tDeck = shuffle(GameMap.ticketDeck(), &rng)
+        var tDeck = shuffle(GameMap.ticketDeck(mapId), &rng)
         func dealTickets() -> [Ticket] {
             let t = Array(tDeck.prefix(startingTickets)); tDeck.removeFirst(startingTickets); return t
         }
@@ -52,7 +52,7 @@ enum Game {
             players.append(PlayerState(hand: draw(startingHand), tickets: dealTickets(),
                                        trains: startingTrains, score: 0))
         }
-        var state = GameState(routes: GameMap.routes(), players: players, currentPlayer: 0,
+        var state = GameState(mapId: mapId, routes: GameMap.routes(mapId), players: players, currentPlayer: 0,
                               deck: deck, discard: [], market: [], ticketDeck: tDeck,
                               finalTurnsLeft: nil, over: false, deckSeed: seed,
                               playerIDs: Array(repeating: nil, count: count),
@@ -258,7 +258,7 @@ enum Game {
             publicDraw = marketCards
         case .claim(let routeId, let color):
             let route = try applyClaim(&next, routeId: routeId, chosen: color)
-            summary = "claimed \(GameMap.label(route))"
+            summary = "claimed \(GameMap.label(route, state.mapId))"
             claimedId = route.id
         case .drawTickets:
             let n = try applyDrawTickets(&next)

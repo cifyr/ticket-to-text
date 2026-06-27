@@ -26,6 +26,7 @@ export interface LobbyView {
   phase: "lobby";
   you: number | null; // your index in the lobby, or null if you haven't joined
   maxPlayers: number;
+  mapId: string;      // which board this game will use
   members: LobbyMemberView[];
   canStart: boolean;
 }
@@ -34,6 +35,7 @@ export interface PlayerView {
   phase: "playing";
   you: number | null; // your seat, or null if you're a spectator / not yet joined
   currentPlayer: number;
+  mapId: string;      // which board to render
   over: boolean;
   players: PublicPlayer[];
   routes: Route[];          // public
@@ -58,6 +60,7 @@ export function redactFor(state: GameState, seat: number | null): PlayerView {
     phase: "playing",
     you: seat,
     currentPlayer: state.currentPlayer,
+    mapId: state.mapId,
     over,
     players: state.players.map((p, i) => ({
       name: state.playerNames[i] ?? null,

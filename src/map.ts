@@ -1,15 +1,25 @@
 import type { RoutePaint, Route, Ticket } from "./types.ts";
 
-// Full-scale US/Canada map: 36 cities, ~78 route segments, original route
-// network + tickets. Positions normalized (0..1, west->east / north->south).
-// Mirror of Swift GameMap.
+// Multi-map registry. Each GameMapDef is one playable board: its cities, route
+// network, and destination tickets. The engine only ever uses city *indices*,
+// so route/ticket order must match the Swift port 1:1 per map (verified by
+// ios:enginecheck). City coords here are display-only; the iOS renderer carries
+// its own geographic coords. Mirror of Swift GameMap.
 export interface City {
   name: string;
   x: number;
   y: number;
 }
 
-export const CITIES: City[] = [
+export interface GameMapDef {
+  id: string;
+  name: string;
+  cities: City[];
+  routeDefs: [number, number, number, RoutePaint][];
+  ticketDefs: [number, number, number][];
+}
+
+const USA_CITIES: City[] = [
   { name: "Vancouver", x: 0.06, y: 0.07 },        // 0
   { name: "Calgary", x: 0.17, y: 0.05 },          // 1
   { name: "Winnipeg", x: 0.41, y: 0.06 },         // 2
@@ -48,9 +58,7 @@ export const CITIES: City[] = [
   { name: "Miami", x: 0.85, y: 0.67 },            // 35
 ];
 
-export const CITY_NAMES = CITIES.map((c) => c.name);
-
-const ROUTE_DEFS: [number, number, number, RoutePaint][] = [
+const USA_ROUTE_DEFS: [number, number, number, RoutePaint][] = [
   [0, 8, 1, "red"],     // Vancouver - Seattle
   [0, 1, 3, "gray"],    // Vancouver - Calgary
   [1, 8, 4, "gray"],    // Calgary - Seattle
@@ -147,13 +155,7 @@ const ROUTE_DEFS: [number, number, number, RoutePaint][] = [
   [34, 27, 4, "green"], // New Orleans - Atlanta (2)      pairs with yellow
 ];
 
-export function mapRoutes(): Route[] {
-  return ROUTE_DEFS.map(([cityA, cityB, length, color], id) => ({
-    id, cityA, cityB, length, color, claimedBy: null,
-  }));
-}
-
-const TICKET_DEFS: [number, number, number][] = [
+const USA_TICKET_DEFS: [number, number, number][] = [
   [8, 7, 22],   // Seattle - New York
   [29, 35, 20], // Los Angeles - Miami
   [17, 27, 17], // San Francisco - Atlanta
@@ -186,14 +188,53 @@ const TICKET_DEFS: [number, number, number][] = [
   [15, 22, 7],  // Omaha - Raleigh
 ];
 
-export function ticketDeck(): Ticket[] {
-  return TICKET_DEFS.map(([cityA, cityB, points], id) => ({ id, cityA, cityB, points }));
+const USA: GameMapDef = {
+  id: "usa",
+  name: "USA",
+  cities: USA_CITIES,
+  routeDefs: USA_ROUTE_DEFS,
+  ticketDefs: USA_TICKET_DEFS,
+};
+
+// The registry. New maps are added here (and mirrored in Swift GameMap).
+export const MAPS: Record<string, GameMapDef> = {
+  [USA.id]: USA,
+};
+
+export const DEFAULT_MAP_ID = "usa";
+
+export function getMap(mapId: string): GameMapDef {
+  return MAPS[mapId] ?? MAPS[DEFAULT_MAP_ID];
 }
 
-export function routeLabel(route: Route): string {
-  return `${CITIES[route.cityA].name} → ${CITIES[route.cityB].name}`;
+export function listMaps(): { id: string; name: string }[] {
+  return Object.values(MAPS).map((m) => ({ id: m.id, name: m.name }));
 }
 
-export function ticketLabel(ticket: Ticket): string {
-  return `${CITIES[ticket.cityA].name} → ${CITIES[ticket.cityB].name}`;
+// USA exported for any callers/tests that still want the default board directly.
+export const CITIES = USA_CITIES;
+export const CITY_NAMES = USA_CITIES.map((c) => c.name);
+
+export function mapCities(mapId: string = DEFAULT_MAP_ID): City[] {
+  return getMap(mapId).cities;
+}
+
+export function mapRoutes(mapId: string = DEFAULT_MAP_ID): Route[] {
+  return getMap(mapId).routeDefs.map(([cityA, cityB, length, color], id) => ({
+    id, cityA, cityB, length, color, claimedBy: null,
+  }));
+}
+
+export function ticketDeck(mapId: string = DEFAULT_MAP_ID): Ticket[] {
+  return getMap(mapId).ticketDefs.map(([cityA, cityB, points], id) => ({ id, cityA, cityB, points }));
+}
+
+export function routeLabel(route: Route, mapId: string = DEFAULT_MAP_ID): string {
+  const c = getMap(mapId).cities;
+  return `${c[route.cityA].name} → ${c[route.cityB].name}`;
+}
+
+export function ticketLabel(ticket: Ticket, mapId: string = DEFAULT_MAP_ID): string {
+  const c = getMap(mapId).cities;
+  return `${c[ticket.cityA].name} → ${c[ticket.cityB].name}`;
 }

@@ -1,17 +1,38 @@
 import Foundation
 
-// Full-scale US/Canada map: 36 cities, ~78 route segments. 1:1 port of src/map.ts.
+// Multi-map registry. 1:1 port of src/map.ts — route/ticket order must match per
+// map (verified by ios:enginecheck). x,y are display-only geographic positions;
+// the engine only uses city indices.
 struct City {
     let name: String
     let x: Double
     let y: Double
 }
 
+struct GameMapDef {
+    let id: String
+    let name: String
+    let cities: [City]
+    let routeDefs: [(Int, Int, Int, RoutePaint)]
+    let ticketDefs: [(Int, Int, Int)]
+
+    func routes() -> [Route] {
+        routeDefs.enumerated().map { i, d in
+            Route(id: i, cityA: d.0, cityB: d.1, length: d.2, color: d.3, claimedBy: nil)
+        }
+    }
+    func tickets() -> [Ticket] {
+        ticketDefs.enumerated().map { i, d in Ticket(id: i, cityA: d.0, cityB: d.1, points: d.2) }
+    }
+}
+
 enum GameMap {
+    static let defaultMapId = "usa"
+
     // x,y are real geographic positions (lon/lat, equal-area projected to a
     // normalized space where width=1 and height=mapAspect) so the city dots sit on
     // the actual US outline drawn behind them. Display-only; engine uses indices.
-    static let cities: [City] = [
+    private static let usaCities: [City] = [
         City(name: "Vancouver", x: 0.0272, y: 0.0389),
         City(name: "Calgary", x: 0.1839, y: 0),
         City(name: "Winnipeg", x: 0.4772, y: 0.0253),
@@ -50,10 +71,7 @@ enum GameMap {
         City(name: "Miami", x: 0.7709, y: 0.5565),
     ]
 
-    static var cityNames: [String] { cities.map(\.name) }
-
-    static func routes() -> [Route] {
-        let defs: [(Int, Int, Int, RoutePaint)] = [
+    private static let usaRouteDefs: [(Int, Int, Int, RoutePaint)] = [
             (0, 8, 1, .red), (0, 1, 3, .gray), (1, 8, 4, .gray), (1, 9, 4, .gray), (1, 2, 6, .white),
             (8, 11, 1, .green), (8, 9, 6, .yellow), (11, 17, 5, .green), (11, 16, 6, .blue),
             (17, 16, 5, .orange), (17, 29, 3, .purple), (29, 23, 2, .gray), (29, 30, 3, .gray),
@@ -79,30 +97,35 @@ enum GameMap {
             (9, 18, 4, .red), (18, 15, 4, .white), (18, 19, 4, .orange), (10, 15, 2, .blue),
             (19, 20, 2, .purple), (19, 25, 2, .red), (20, 14, 2, .white), (14, 12, 3, .black),
             (7, 6, 2, .red), (13, 7, 2, .black), (32, 33, 1, .red), (34, 27, 4, .green),
-        ]
-        return defs.enumerated().map { i, d in
-            Route(id: i, cityA: d.0, cityB: d.1, length: d.2, color: d.3, claimedBy: nil)
-        }
-    }
+    ]
 
-    static func ticketDeck() -> [Ticket] {
-        let defs: [(Int, Int, Int)] = [
+    private static let usaTicketDefs: [(Int, Int, Int)] = [
             (8, 7, 22), (29, 35, 20), (17, 27, 17), (8, 33, 18), (18, 13, 11), (11, 6, 21),
             (30, 14, 12), (32, 7, 11), (16, 35, 16), (6, 35, 12), (14, 33, 9), (23, 27, 13),
             (0, 7, 20), (0, 34, 13), (29, 18, 7), (29, 14, 16), (1, 20, 8), (2, 33, 12),
             (4, 27, 9), (3, 25, 8), (11, 30, 11), (9, 22, 8), (18, 33, 4), (19, 28, 8),
             (10, 7, 14), (24, 34, 5), (16, 21, 6), (31, 4, 16), (12, 35, 7), (15, 22, 7),
-        ]
-        return defs.enumerated().map { i, d in
-            Ticket(id: i, cityA: d.0, cityB: d.1, points: d.2)
-        }
-    }
+    ]
 
-    static func label(_ route: Route) -> String {
-        "\(cities[route.cityA].name) → \(cities[route.cityB].name)"
-    }
+    static let usa = GameMapDef(id: "usa", name: "USA", cities: usaCities,
+                                routeDefs: usaRouteDefs, ticketDefs: usaTicketDefs)
 
-    static func ticketLabel(_ t: Ticket) -> String {
-        "\(cities[t.cityA].name) → \(cities[t.cityB].name)"
+    // The registry. New maps are added here (and mirrored in src/map.ts).
+    static let maps: [String: GameMapDef] = [usa.id: usa]
+    static var all: [GameMapDef] { [usa] }   // ordered for the picker
+
+    static func def(_ mapId: String) -> GameMapDef { maps[mapId] ?? usa }
+    static func cities(_ mapId: String) -> [City] { def(mapId).cities }
+    static func name(_ mapId: String) -> String { def(mapId).name }
+    static func routes(_ mapId: String) -> [Route] { def(mapId).routes() }
+    static func ticketDeck(_ mapId: String) -> [Ticket] { def(mapId).tickets() }
+
+    static func label(_ route: Route, _ mapId: String) -> String {
+        let c = cities(mapId)
+        return "\(c[route.cityA].name) → \(c[route.cityB].name)"
+    }
+    static func ticketLabel(_ t: Ticket, _ mapId: String) -> String {
+        let c = cities(mapId)
+        return "\(c[t.cityA].name) → \(c[t.cityB].name)"
     }
 }

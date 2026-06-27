@@ -42,6 +42,7 @@ export interface LogEntry {
 }
 
 export interface GameState {
+  mapId: string;       // which board this game uses (see src/map.ts registry)
   routes: Route[];
   players: PlayerState[]; // 2-4
   currentPlayer: number;

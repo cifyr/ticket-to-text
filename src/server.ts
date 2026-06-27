@@ -1,4 +1,5 @@
 import { applyMoveBy, assignedIndex, newGame } from "./game.ts";
+import { getMap } from "./map.ts";
 import { redactFor, type LobbyView, type PlayerView } from "./redact.ts";
 import type { GameState, Move } from "./types.ts";
 
@@ -7,7 +8,7 @@ import type { GameState, Move } from "./types.ts";
 // seating happen here. Storage is pluggable (memory for tests; Redis in prod).
 
 export interface LobbyMember { id: string; name: string | null; ready: boolean }
-export interface Lobby { members: LobbyMember[]; maxPlayers: number; hostId: string; seed: number }
+export interface Lobby { members: LobbyMember[]; maxPlayers: number; hostId: string; seed: number; mapId: string }
 export type Room = { kind: "lobby"; lobby: Lobby } | { kind: "game"; game: GameState };
 
 export interface Store {
@@ -49,6 +50,7 @@ function lobbyViewFor(lobby: Lobby, participantId: string): LobbyView {
     phase: "lobby",
     you: youIdx === -1 ? null : youIdx,
     maxPlayers: lobby.maxPlayers,
+    mapId: lobby.mapId,
     members: lobby.members.map((m, i) => ({ name: m.name, ready: m.ready, isHost: i === 0 })),
     canStart: lobby.members.filter((m) => m.ready).length >= 2, // only readied players are in
   };
@@ -57,7 +59,7 @@ function lobbyViewFor(lobby: Lobby, participantId: string): LobbyView {
 // --- Lobby ----------------------------------------------------------------
 
 export async function createLobby(
-  store: Store, opts: { hostId: string; hostName?: string; maxPlayers?: number; seed?: number; gameId?: string },
+  store: Store, opts: { hostId: string; hostName?: string; maxPlayers?: number; seed?: number; gameId?: string; mapId?: string },
 ): Promise<{ gameId: string; view: LobbyView }> {
   const maxPlayers = Math.max(2, Math.min(4, opts.maxPlayers ?? 4));
   const lobby: Lobby = {
@@ -65,6 +67,7 @@ export async function createLobby(
     maxPlayers,
     hostId: opts.hostId,
     seed: opts.seed ?? Math.floor(Math.random() * 0xffffffff),
+    mapId: getMap(opts.mapId ?? "usa").id, // validated against the registry
   };
   const gameId = opts.gameId ?? cryptoId();
   await store.set(gameId, { kind: "lobby", lobby });
@@ -131,7 +134,7 @@ export async function startLobby(store: Store, gameId: string, participantId: st
     // host readied, else they'd be dropped and become a spectator of their own game.
     if (!ready.some((m) => m.id === lobby.hostId)) throw new BadState("host must be ready to start");
 
-    const game = newGame(lobby.seed, ready.length);
+    const game = newGame(lobby.seed, ready.length, lobby.mapId);
     ready.forEach((m, i) => { game.playerIDs[i] = m.id; game.playerNames[i] = m.name; });
     return { kind: "game", game };
   });
@@ -142,10 +145,10 @@ export async function startLobby(store: Store, gameId: string, participantId: st
 // --- Game -----------------------------------------------------------------
 
 export async function createGame(
-  store: Store, opts: { playerCount: number; hostId: string; hostName?: string; seed?: number; gameId?: string },
+  store: Store, opts: { playerCount: number; hostId: string; hostName?: string; seed?: number; gameId?: string; mapId?: string },
 ): Promise<{ gameId: string; view: PlayerView }> {
   const seed = opts.seed ?? Math.floor(Math.random() * 0xffffffff);
-  const state = newGame(seed, opts.playerCount);
+  const state = newGame(seed, opts.playerCount, getMap(opts.mapId ?? "usa").id);
   state.playerIDs[0] = opts.hostId;
   if (opts.hostName) state.playerNames[0] = opts.hostName;
   const gameId = opts.gameId ?? cryptoId();

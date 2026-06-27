@@ -19,6 +19,7 @@ extension PlayerView {
         }
         let placeholderTicket = Ticket(id: -1, cityA: 0, cityB: 0, points: 0)
         return GameState(
+            mapId: mapId ?? GameMap.defaultMapId,
             routes: routes,
             players: ps,
             currentPlayer: currentPlayer,

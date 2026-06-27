@@ -17,6 +17,7 @@ struct PlayerView: Codable {
     var phase: String = "playing"
     let you: Int?
     let currentPlayer: Int
+    var mapId: String? = nil   // which board to render (optional: tolerant of an older server)
     let over: Bool
     let players: [PublicPlayer]
     let routes: [Route]
@@ -51,6 +52,7 @@ struct LobbyView: Codable {
     var phase: String = "lobby"
     let you: Int?
     let maxPlayers: Int
+    var mapId: String? = nil   // which board this game will use
     let members: [LobbyMemberView]
     let canStart: Bool
 }

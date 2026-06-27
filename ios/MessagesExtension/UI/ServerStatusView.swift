@@ -6,10 +6,12 @@ struct ServerStatusView: View {
     let error: String?
     let loading: Bool
     let isExpanded: Bool
-    let onNewGame: () -> Void
+    let onNewGame: (String) -> Void   // chosen map id
     let onExpand: () -> Void
 
     @State private var showHelp = false
+    @AppStorage("preferredMapId") private var selectedMapId = GameMap.defaultMapId
+    private var maps: [GameMapDef] { GameMap.all }
 
     var body: some View {
         Group { if isExpanded { expanded } else { compact } }
@@ -47,7 +49,26 @@ struct ServerStatusView: View {
             } else {
                 Text("Happy Birthday Dad!").font(.slab(19, .bold)).foregroundStyle(Palette.brass)
             }
-            Button(action: onNewGame) { Label("Start a New Game", systemImage: "play.fill") }
+            if maps.count > 1 {
+                VStack(spacing: 6) {
+                    Text("Map").font(.sans(11, .bold)).tracking(1).textCase(.uppercase).foregroundStyle(Palette.sepiaLight)
+                    Menu {
+                        ForEach(maps, id: \.id) { m in
+                            Button(m.name) { selectedMapId = m.id }
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "map.fill").foregroundStyle(Palette.brass)
+                            Text(GameMap.name(selectedMapId)).font(.slab(16, .bold)).foregroundStyle(Palette.ink)
+                            Image(systemName: "chevron.up.chevron.down").font(.system(size: 11, weight: .bold)).foregroundStyle(Palette.sepia)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 9)
+                        .background(RoundedRectangle(cornerRadius: 11).fill(Palette.parchment)
+                            .overlay(RoundedRectangle(cornerRadius: 11).stroke(Palette.hairline, lineWidth: 1)))
+                    }
+                }
+            }
+            Button { onNewGame(selectedMapId) } label: { Label("Start a New Game", systemImage: "play.fill") }
                 .buttonStyle(BrassButtonStyle())
                 .padding(.horizontal, 30)
             Button { showHelp = true } label: {

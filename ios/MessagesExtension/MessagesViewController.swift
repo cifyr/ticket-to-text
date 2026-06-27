@@ -220,14 +220,14 @@ class MessagesViewController: MSMessagesAppViewController {
             }
         }
     }
-    private func onNewGameServer(_ c: MSConversation) {
+    private func onNewGameServer(_ c: MSConversation, mapId: String = GameMap.defaultMapId) {
         loading = true; render(for: c)
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 // Lobby always allows up to 4; it sizes to whoever actually joins.
                 let resp = try await self.client.createLobby(hostId: self.localID(c), hostName: self.localName(),
-                                                             maxPlayers: 4)
+                                                             maxPlayers: 4, mapId: mapId)
                 self.serverGameId = resp.gameId
                 self.gameSession = nil   // fresh thread for this new game
                 self.lobby = resp.view
@@ -348,7 +348,7 @@ class MessagesViewController: MSMessagesAppViewController {
         if AppConfig.useServer && displayState == nil {
             setRoot(AnyView(ServerStatusView(
                 error: serverError, loading: loading, isExpanded: isExpanded,
-                onNewGame: { [weak self] in self?.onNewGameServer(c) },
+                onNewGame: { [weak self] mapId in self?.onNewGameServer(c, mapId: mapId) },
                 onExpand: { [weak self] in self?.requestPresentationStyle(.expanded) })))
             return
         }

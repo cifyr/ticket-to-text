@@ -28,7 +28,7 @@ func run() async {
         precondition(Game.canAct(hostDS, participantID: "A"), "host can act on its turn")
         let bDS = b.displayState(localID: "B")
         precondition(!Game.canAct(bDS, participantID: "B"), "B cannot act on host's turn")
-        precondition(hostDS.routes.count == GameMap.routes().count, "full map round-tripped (\(hostDS.routes.count) routes)")
+        precondition(hostDS.routes.count == GameMap.routes(GameMap.defaultMapId).count, "full map round-tripped (\(hostDS.routes.count) routes)")
         print("displayState adapter OK — routes=\(hostDS.routes.count)")
 
         do {
