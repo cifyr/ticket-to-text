@@ -68,7 +68,7 @@ struct BoardArea: View {
 
     // Three zoom levels: 0 = whole US (with map), 1 = read detail, 2 = closest.
     @State private var zoomLevel = 0
-    private let aspect: CGFloat = BoardGeometry.mapAspect   // true US shape
+    private var aspect: CGFloat { BoardGeometry.contentAspect(state.mapId) }   // per-map shape
     private let scales: [CGFloat] = [1.0, 3.7, 6.6]
 
     var body: some View {
@@ -169,8 +169,8 @@ private struct CenteredRouteBoard: View {
             return CGPoint(x: size.width / 2, y: size.height / 2)
         }
         let cs = GameMap.cities(state.mapId)
-        let a = BoardGeometry.point(cs[r.cityA].x, cs[r.cityA].y, in: size)
-        let b = BoardGeometry.point(cs[r.cityB].x, cs[r.cityB].y, in: size)
+        let a = BoardGeometry.point(cs[r.cityA].x, cs[r.cityA].y, in: size, mapId: state.mapId)
+        let b = BoardGeometry.point(cs[r.cityB].x, cs[r.cityB].y, in: size, mapId: state.mapId)
         return CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
     }
 }
@@ -208,8 +208,8 @@ private struct DestinationLine: View {
 
     var body: some View {
         let cs = GameMap.cities(mapId)
-        let a = BoardGeometry.point(cs[ticket.cityA].x, cs[ticket.cityA].y, in: size)
-        let b = BoardGeometry.point(cs[ticket.cityB].x, cs[ticket.cityB].y, in: size)
+        let a = BoardGeometry.point(cs[ticket.cityA].x, cs[ticket.cityA].y, in: size, mapId: mapId)
+        let b = BoardGeometry.point(cs[ticket.cityB].x, cs[ticket.cityB].y, in: size, mapId: mapId)
         ZStack {
             Path { p in p.move(to: a); p.addLine(to: b) }
                 .trim(from: 0, to: progress)
@@ -228,22 +228,54 @@ private struct DestinationLine: View {
 
 // Shared layout + drawing so the live board and the bubble snapshot match.
 enum BoardGeometry {
-    // The board is laid out in a normalized space of width 1 and height mapAspect
-    // (the true US aspect ratio). point() fits that box into the frame WITHOUT
-    // distortion and centers it, so the dots and the US outline keep real shape.
-    static let mapAspect: CGFloat = 0.5715
+    static let mapAspect: CGFloat = 0.5715   // fallback aspect
 
-    static func point(_ nx: Double, _ ny: Double, in size: CGSize) -> CGPoint {
-        let padX: CGFloat = 24, padY: CGFloat = 16
-        let w = size.width - padX * 2, h = size.height - padY * 2
-        let s = min(w, h / mapAspect)               // uniform scale, preserve aspect
-        let ox = padX + (w - s) / 2                 // center horizontally
-        let oy = padY + (h - s * mapAspect) / 2     // center vertically
-        return CGPoint(x: ox + CGFloat(nx) * s, y: oy + CGFloat(ny) * s)
+    // Bounding box of everything drawn for a map (cities + outline + water), so
+    // the board can zoom-to-fit each region instead of a fixed normalized box.
+    typealias Bounds = (minX: Double, minY: Double, maxX: Double, maxY: Double)
+    private static var boundsCache: [String: Bounds] = [:]
+
+    static func contentBounds(_ mapId: String) -> Bounds {
+        if let b = boundsCache[mapId] { return b }
+        var lo = (x: Double.greatestFiniteMagnitude, y: Double.greatestFiniteMagnitude)
+        var hi = (x: -Double.greatestFiniteMagnitude, y: -Double.greatestFiniteMagnitude)
+        func add(_ x: Double, _ y: Double) {
+            lo.x = min(lo.x, x); lo.y = min(lo.y, y); hi.x = max(hi.x, x); hi.y = max(hi.y, y)
+        }
+        for c in GameMap.cities(mapId) { add(c.x, c.y) }
+        let rings = (mapOutlines[mapId] ?? []) + (mapWater[mapId] ?? [])
+            + (cityWater[mapId] ?? []) + (cityRivers[mapId] ?? [])
+        for ring in rings { for p in ring { add(p.0, p.1) } }
+        if mapId == "usa" {
+            for ring in [usOutline, canadaOutline] + stateOutlines { for p in ring { add(p.0, p.1) } }
+        }
+        if lo.x > hi.x { lo = (0, 0); hi = (1, mapAspect) } // empty fallback
+        let b: Bounds = (lo.x, lo.y, hi.x, hi.y)
+        boundsCache[mapId] = b
+        return b
+    }
+
+    static func contentAspect(_ mapId: String) -> CGFloat {
+        let b = contentBounds(mapId)
+        let w = b.maxX - b.minX, h = b.maxY - b.minY
+        return w > 0 ? CGFloat(h / w) : mapAspect
+    }
+
+    // Fit the map's content bounds into the frame, preserving aspect, with a
+    // small margin so nothing touches the edge.
+    static func point(_ nx: Double, _ ny: Double, in size: CGSize, mapId: String) -> CGPoint {
+        let b = contentBounds(mapId)
+        let pad: CGFloat = 18
+        let bw = max(b.maxX - b.minX, 1e-6), bh = max(b.maxY - b.minY, 1e-6)
+        let w = size.width - pad * 2, h = size.height - pad * 2
+        let s = min(w / bw, h / bh)                 // uniform scale, no stretch
+        let ox = pad + (w - CGFloat(bw) * s) / 2
+        let oy = pad + (h - CGFloat(bh) * s) / 2
+        return CGPoint(x: ox + CGFloat(nx - b.minX) * s, y: oy + CGFloat(ny - b.minY) * s)
     }
 
     static func positions(in size: CGSize, mapId: String) -> [CGPoint] {
-        GameMap.cities(mapId).map { point($0.x, $0.y, in: size) }
+        GameMap.cities(mapId).map { point($0.x, $0.y, in: size, mapId: mapId) }
     }
 
     // Faint actual continental-US outline behind the routes so the board reads as
@@ -361,25 +393,25 @@ enum BoardGeometry {
                                              endPoint: CGPoint(x: 0, y: fadeH)))
         }
         if mapId == "usa" {
-            fillLand(canadaOutline, in: c, size: size)
-            fillLand(usOutline, in: c, size: size)
+            fillLand(canadaOutline, in: c, size: size, mapId: mapId)
+            fillLand(usOutline, in: c, size: size, mapId: mapId)
             for ring in stateOutlines {   // faint interior state lines
                 var path = Path()
                 for (i, pt) in ring.enumerated() {
-                    let p = point(pt.0, pt.1, in: size)
+                    let p = point(pt.0, pt.1, in: size, mapId: mapId)
                     if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
                 }
                 path.closeSubpath()
                 c.stroke(path, with: .color(Palette.sepia.opacity(0.16)), lineWidth: 0.6)
             }
         } else if let rings = mapOutlines[mapId] {
-            for ring in rings { fillLand(ring, in: c, size: size) }
+            for ring in rings { fillLand(ring, in: c, size: size, mapId: mapId) }
         }
         // Lakes/seas/harbors for maps that have them, in faint blue.
         for ring in (mapWater[mapId] ?? []) + (cityWater[mapId] ?? []) {
             var path = Path()
             for (i, pt) in ring.enumerated() {
-                let p = point(pt.0, pt.1, in: size)
+                let p = point(pt.0, pt.1, in: size, mapId: mapId)
                 if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
             }
             path.closeSubpath()
@@ -390,7 +422,7 @@ enum BoardGeometry {
         for line in (cityRivers[mapId] ?? []) {
             var path = Path()
             for (i, pt) in line.enumerated() {
-                let p = point(pt.0, pt.1, in: size)
+                let p = point(pt.0, pt.1, in: size, mapId: mapId)
                 if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
             }
             c.stroke(path, with: .color(Color(hex: 0x4A77A8).opacity(0.45)),
@@ -398,10 +430,10 @@ enum BoardGeometry {
         }
     }
 
-    private static func fillLand(_ outline: [(Double, Double)], in ctx: GraphicsContext, size: CGSize) {
+    private static func fillLand(_ outline: [(Double, Double)], in ctx: GraphicsContext, size: CGSize, mapId: String) {
         var path = Path()
         for (i, c) in outline.enumerated() {
-            let p = point(c.0, c.1, in: size)
+            let p = point(c.0, c.1, in: size, mapId: mapId)
             if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
         }
         path.closeSubpath()
