@@ -480,12 +480,12 @@ enum GameMap {
     ])
 
     static let newyork = GameMapDef(id: "newyork", name: "New York", cities: [
-        City(name: "Inwood", x: 0.36, y: 0.02), City(name: "Harlem", x: 0.40, y: 0.12),
-        City(name: "Upper West Side", x: 0.30, y: 0.22), City(name: "Upper East Side", x: 0.48, y: 0.22),
-        City(name: "Midtown", x: 0.38, y: 0.34), City(name: "Chelsea", x: 0.28, y: 0.40),
-        City(name: "Greenwich Village", x: 0.36, y: 0.46), City(name: "SoHo", x: 0.34, y: 0.54),
-        City(name: "Lower Manhattan", x: 0.40, y: 0.64), City(name: "Brooklyn", x: 0.56, y: 0.66),
-        City(name: "Queens", x: 0.64, y: 0.44), City(name: "Bronx", x: 0.56, y: 0.10),
+        City(name: "Inwood", x: 0.506, y: 0.067), City(name: "Harlem", x: 0.469, y: 0.182),
+        City(name: "Upper West Side", x: 0.423, y: 0.231), City(name: "Upper East Side", x: 0.451, y: 0.259),
+        City(name: "Midtown", x: 0.409, y: 0.298), City(name: "Chelsea", x: 0.383, y: 0.318),
+        City(name: "Greenwich Village", x: 0.389, y: 0.341), City(name: "SoHo", x: 0.384, y: 0.361),
+        City(name: "Lower Manhattan", x: 0.367, y: 0.396), City(name: "Brooklyn", x: 0.461, y: 0.510),
+        City(name: "Queens", x: 0.631, y: 0.347), City(name: "Bronx", x: 0.591, y: 0.114),
     ], routeDefs: [
         (0, 11, 1, .gray), (0, 1, 1, .green), (1, 11, 1, .yellow), (1, 2, 1, .gray),
         (1, 3, 1, .red), (2, 4, 1, .gray), (3, 4, 1, .blue), (3, 10, 2, .orange),
@@ -498,11 +498,11 @@ enum GameMap {
     ])
 
     static let london = GameMapDef(id: "london", name: "London", cities: [
-        City(name: "Camden", x: 0.36, y: 0.16), City(name: "Islington", x: 0.50, y: 0.18),
-        City(name: "Paddington", x: 0.26, y: 0.30), City(name: "Westminster", x: 0.36, y: 0.36),
-        City(name: "City", x: 0.52, y: 0.34), City(name: "Shoreditch", x: 0.58, y: 0.26),
-        City(name: "Kensington", x: 0.22, y: 0.42), City(name: "Southwark", x: 0.46, y: 0.44),
-        City(name: "Greenwich", x: 0.66, y: 0.46), City(name: "Brixton", x: 0.42, y: 0.56),
+        City(name: "Camden", x: 0.373, y: 0.100), City(name: "Islington", x: 0.491, y: 0.105),
+        City(name: "Paddington", x: 0.275, y: 0.214), City(name: "Westminster", x: 0.390, y: 0.281),
+        City(name: "City", x: 0.524, y: 0.214), City(name: "Shoreditch", x: 0.565, y: 0.162),
+        City(name: "Kensington", x: 0.227, y: 0.286), City(name: "Southwark", x: 0.518, y: 0.271),
+        City(name: "Greenwich", x: 0.796, y: 0.367), City(name: "Brixton", x: 0.456, y: 0.467),
     ], routeDefs: [
         (0, 1, 1, .gray), (0, 2, 2, .green), (1, 5, 1, .yellow), (2, 3, 2, .gray),
         (0, 3, 1, .red), (3, 4, 1, .blue), (1, 4, 1, .gray), (4, 5, 1, .orange),
@@ -513,11 +513,11 @@ enum GameMap {
     ])
 
     static let paris = GameMapDef(id: "paris", name: "Paris", cities: [
-        City(name: "Montmartre", x: 0.40, y: 0.12), City(name: "La Villette", x: 0.56, y: 0.14),
-        City(name: "Champs-Elysees", x: 0.28, y: 0.26), City(name: "Louvre", x: 0.42, y: 0.28),
-        City(name: "Bastille", x: 0.56, y: 0.30), City(name: "Eiffel Tower", x: 0.24, y: 0.38),
-        City(name: "Latin Quarter", x: 0.44, y: 0.40), City(name: "Bercy", x: 0.58, y: 0.42),
-        City(name: "Montparnasse", x: 0.34, y: 0.46), City(name: "Place d'Italie", x: 0.48, y: 0.52),
+        City(name: "Montmartre", x: 0.533, y: 0.089), City(name: "La Villette", x: 0.721, y: 0.063),
+        City(name: "Champs-Elysees", x: 0.383, y: 0.178), City(name: "Louvre", x: 0.508, y: 0.248),
+        City(name: "Bastille", x: 0.642, y: 0.298), City(name: "Eiffel Tower", x: 0.329, y: 0.267),
+        City(name: "Latin Quarter", x: 0.550, y: 0.324), City(name: "Bercy", x: 0.696, y: 0.394),
+        City(name: "Montparnasse", x: 0.450, y: 0.381), City(name: "Place d'Italie", x: 0.584, y: 0.438),
     ], routeDefs: [
         (0, 2, 2, .gray), (0, 3, 1, .green), (0, 1, 1, .yellow), (1, 4, 1, .gray),
         (2, 3, 1, .red), (3, 4, 1, .blue), (2, 5, 2, .gray), (3, 6, 1, .orange),
@@ -528,11 +528,11 @@ enum GameMap {
     ])
 
     static let amsterdam = GameMapDef(id: "amsterdam", name: "Amsterdam", cities: [
-        City(name: "Centraal", x: 0.40, y: 0.10), City(name: "Jordaan", x: 0.30, y: 0.20),
-        City(name: "Dam", x: 0.42, y: 0.22), City(name: "Plantage", x: 0.56, y: 0.24),
-        City(name: "Museumplein", x: 0.34, y: 0.34), City(name: "De Pijp", x: 0.44, y: 0.38),
-        City(name: "Oost", x: 0.60, y: 0.36), City(name: "Vondelpark", x: 0.26, y: 0.36),
-        City(name: "Zuid", x: 0.40, y: 0.48), City(name: "Oud-West", x: 0.28, y: 0.28),
+        City(name: "Centraal", x: 0.525, y: 0.171), City(name: "Jordaan", x: 0.430, y: 0.212),
+        City(name: "Dam", x: 0.490, y: 0.220), City(name: "Plantage", x: 0.585, y: 0.278),
+        City(name: "Museumplein", x: 0.420, y: 0.343), City(name: "De Pijp", x: 0.495, y: 0.367),
+        City(name: "Oost", x: 0.660, y: 0.335), City(name: "Vondelpark", x: 0.370, y: 0.343),
+        City(name: "Zuid", x: 0.390, y: 0.482), City(name: "Oud-West", x: 0.355, y: 0.278),
     ], routeDefs: [
         (0, 1, 1, .gray), (0, 2, 1, .green), (0, 3, 2, .yellow), (1, 9, 1, .gray),
         (2, 3, 1, .red), (2, 4, 2, .blue), (9, 4, 1, .gray), (4, 7, 1, .orange),
@@ -543,11 +543,11 @@ enum GameMap {
     ])
 
     static let berlin = GameMapDef(id: "berlin", name: "Berlin", cities: [
-        City(name: "Spandau", x: 0.10, y: 0.24), City(name: "Charlottenburg", x: 0.26, y: 0.28),
-        City(name: "Mitte", x: 0.44, y: 0.26), City(name: "Prenzlauer Berg", x: 0.52, y: 0.20),
-        City(name: "Friedrichshain", x: 0.58, y: 0.30), City(name: "Kreuzberg", x: 0.48, y: 0.36),
-        City(name: "Neukolln", x: 0.52, y: 0.46), City(name: "Tempelhof", x: 0.40, y: 0.44),
-        City(name: "Schoneberg", x: 0.32, y: 0.40), City(name: "Lichtenberg", x: 0.66, y: 0.24),
+        City(name: "Spandau", x: 0.144, y: 0.169), City(name: "Charlottenburg", x: 0.393, y: 0.243),
+        City(name: "Mitte", x: 0.631, y: 0.227), City(name: "Prenzlauer Berg", x: 0.676, y: 0.149),
+        City(name: "Friedrichshain", x: 0.747, y: 0.247), City(name: "Kreuzberg", x: 0.626, y: 0.309),
+        City(name: "Neukolln", x: 0.702, y: 0.379), City(name: "Tempelhof", x: 0.583, y: 0.422),
+        City(name: "Schoneberg", x: 0.507, y: 0.372), City(name: "Lichtenberg", x: 0.856, y: 0.247),
     ], routeDefs: [
         (0, 1, 2, .gray), (1, 2, 2, .green), (1, 8, 2, .yellow), (2, 3, 1, .gray),
         (2, 5, 1, .red), (3, 4, 1, .blue), (3, 9, 1, .gray), (4, 9, 1, .orange),
@@ -558,11 +558,11 @@ enum GameMap {
     ])
 
     static let sanfrancisco = GameMapDef(id: "sanfrancisco", name: "San Francisco", cities: [
-        City(name: "Marina", x: 0.30, y: 0.10), City(name: "North Beach", x: 0.46, y: 0.12),
-        City(name: "Richmond", x: 0.14, y: 0.22), City(name: "Nob Hill", x: 0.42, y: 0.22),
-        City(name: "Financial District", x: 0.54, y: 0.22), City(name: "Haight", x: 0.30, y: 0.32),
-        City(name: "Mission", x: 0.46, y: 0.38), City(name: "Castro", x: 0.34, y: 0.40),
-        City(name: "Sunset", x: 0.18, y: 0.40), City(name: "Bayview", x: 0.56, y: 0.50),
+        City(name: "Marina", x: 0.510, y: 0.119), City(name: "North Beach", x: 0.604, y: 0.106),
+        City(name: "Richmond", x: 0.371, y: 0.220), City(name: "Nob Hill", x: 0.587, y: 0.163),
+        City(name: "Financial District", x: 0.639, y: 0.158), City(name: "Haight", x: 0.479, y: 0.264),
+        City(name: "Mission", x: 0.576, y: 0.308), City(name: "Castro", x: 0.517, y: 0.299),
+        City(name: "Sunset", x: 0.312, y: 0.325), City(name: "Bayview", x: 0.674, y: 0.440),
     ], routeDefs: [
         (0, 1, 1, .gray), (0, 3, 1, .green), (1, 4, 1, .yellow), (1, 3, 1, .gray),
         (3, 4, 1, .red), (2, 0, 2, .blue), (2, 5, 2, .gray), (3, 5, 1, .orange),

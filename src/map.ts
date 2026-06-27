@@ -674,12 +674,12 @@ const RAILS_LAKES: GameMapDef = {
 const NEW_YORK: GameMapDef = {
   id: "newyork", name: "New York",
   cities: [
-    { name: "Inwood", x: 0.36, y: 0.02 }, { name: "Harlem", x: 0.40, y: 0.12 },
-    { name: "Upper West Side", x: 0.30, y: 0.22 }, { name: "Upper East Side", x: 0.48, y: 0.22 },
-    { name: "Midtown", x: 0.38, y: 0.34 }, { name: "Chelsea", x: 0.28, y: 0.40 },
-    { name: "Greenwich Village", x: 0.36, y: 0.46 }, { name: "SoHo", x: 0.34, y: 0.54 },
-    { name: "Lower Manhattan", x: 0.40, y: 0.64 }, { name: "Brooklyn", x: 0.56, y: 0.66 },
-    { name: "Queens", x: 0.64, y: 0.44 }, { name: "Bronx", x: 0.56, y: 0.10 },
+    { name: "Inwood", x: 0.506, y: 0.067 }, { name: "Harlem", x: 0.469, y: 0.182 },
+    { name: "Upper West Side", x: 0.423, y: 0.231 }, { name: "Upper East Side", x: 0.451, y: 0.259 },
+    { name: "Midtown", x: 0.409, y: 0.298 }, { name: "Chelsea", x: 0.383, y: 0.318 },
+    { name: "Greenwich Village", x: 0.389, y: 0.341 }, { name: "SoHo", x: 0.384, y: 0.361 },
+    { name: "Lower Manhattan", x: 0.367, y: 0.396 }, { name: "Brooklyn", x: 0.461, y: 0.510 },
+    { name: "Queens", x: 0.631, y: 0.347 }, { name: "Bronx", x: 0.591, y: 0.114 },
   ],
   routeDefs: [
     [0, 11, 1, "gray"], [0, 1, 1, "green"], [1, 11, 1, "yellow"], [1, 2, 1, "gray"],
@@ -697,11 +697,11 @@ const NEW_YORK: GameMapDef = {
 const LONDON: GameMapDef = {
   id: "london", name: "London",
   cities: [
-    { name: "Camden", x: 0.36, y: 0.16 }, { name: "Islington", x: 0.50, y: 0.18 },
-    { name: "Paddington", x: 0.26, y: 0.30 }, { name: "Westminster", x: 0.36, y: 0.36 },
-    { name: "City", x: 0.52, y: 0.34 }, { name: "Shoreditch", x: 0.58, y: 0.26 },
-    { name: "Kensington", x: 0.22, y: 0.42 }, { name: "Southwark", x: 0.46, y: 0.44 },
-    { name: "Greenwich", x: 0.66, y: 0.46 }, { name: "Brixton", x: 0.42, y: 0.56 },
+    { name: "Camden", x: 0.373, y: 0.100 }, { name: "Islington", x: 0.491, y: 0.105 },
+    { name: "Paddington", x: 0.275, y: 0.214 }, { name: "Westminster", x: 0.390, y: 0.281 },
+    { name: "City", x: 0.524, y: 0.214 }, { name: "Shoreditch", x: 0.565, y: 0.162 },
+    { name: "Kensington", x: 0.227, y: 0.286 }, { name: "Southwark", x: 0.518, y: 0.271 },
+    { name: "Greenwich", x: 0.796, y: 0.367 }, { name: "Brixton", x: 0.456, y: 0.467 },
   ],
   routeDefs: [
     [0, 1, 1, "gray"], [0, 2, 2, "green"], [1, 5, 1, "yellow"], [2, 3, 2, "gray"],
@@ -717,11 +717,11 @@ const LONDON: GameMapDef = {
 const PARIS: GameMapDef = {
   id: "paris", name: "Paris",
   cities: [
-    { name: "Montmartre", x: 0.40, y: 0.12 }, { name: "La Villette", x: 0.56, y: 0.14 },
-    { name: "Champs-Elysees", x: 0.28, y: 0.26 }, { name: "Louvre", x: 0.42, y: 0.28 },
-    { name: "Bastille", x: 0.56, y: 0.30 }, { name: "Eiffel Tower", x: 0.24, y: 0.38 },
-    { name: "Latin Quarter", x: 0.44, y: 0.40 }, { name: "Bercy", x: 0.58, y: 0.42 },
-    { name: "Montparnasse", x: 0.34, y: 0.46 }, { name: "Place d'Italie", x: 0.48, y: 0.52 },
+    { name: "Montmartre", x: 0.533, y: 0.089 }, { name: "La Villette", x: 0.721, y: 0.063 },
+    { name: "Champs-Elysees", x: 0.383, y: 0.178 }, { name: "Louvre", x: 0.508, y: 0.248 },
+    { name: "Bastille", x: 0.642, y: 0.298 }, { name: "Eiffel Tower", x: 0.329, y: 0.267 },
+    { name: "Latin Quarter", x: 0.550, y: 0.324 }, { name: "Bercy", x: 0.696, y: 0.394 },
+    { name: "Montparnasse", x: 0.450, y: 0.381 }, { name: "Place d'Italie", x: 0.584, y: 0.438 },
   ],
   routeDefs: [
     [0, 2, 2, "gray"], [0, 3, 1, "green"], [0, 1, 1, "yellow"], [1, 4, 1, "gray"],
@@ -737,11 +737,11 @@ const PARIS: GameMapDef = {
 const AMSTERDAM: GameMapDef = {
   id: "amsterdam", name: "Amsterdam",
   cities: [
-    { name: "Centraal", x: 0.40, y: 0.10 }, { name: "Jordaan", x: 0.30, y: 0.20 },
-    { name: "Dam", x: 0.42, y: 0.22 }, { name: "Plantage", x: 0.56, y: 0.24 },
-    { name: "Museumplein", x: 0.34, y: 0.34 }, { name: "De Pijp", x: 0.44, y: 0.38 },
-    { name: "Oost", x: 0.60, y: 0.36 }, { name: "Vondelpark", x: 0.26, y: 0.36 },
-    { name: "Zuid", x: 0.40, y: 0.48 }, { name: "Oud-West", x: 0.28, y: 0.28 },
+    { name: "Centraal", x: 0.525, y: 0.171 }, { name: "Jordaan", x: 0.430, y: 0.212 },
+    { name: "Dam", x: 0.490, y: 0.220 }, { name: "Plantage", x: 0.585, y: 0.278 },
+    { name: "Museumplein", x: 0.420, y: 0.343 }, { name: "De Pijp", x: 0.495, y: 0.367 },
+    { name: "Oost", x: 0.660, y: 0.335 }, { name: "Vondelpark", x: 0.370, y: 0.343 },
+    { name: "Zuid", x: 0.390, y: 0.482 }, { name: "Oud-West", x: 0.355, y: 0.278 },
   ],
   routeDefs: [
     [0, 1, 1, "gray"], [0, 2, 1, "green"], [0, 3, 2, "yellow"], [1, 9, 1, "gray"],
@@ -757,11 +757,11 @@ const AMSTERDAM: GameMapDef = {
 const BERLIN: GameMapDef = {
   id: "berlin", name: "Berlin",
   cities: [
-    { name: "Spandau", x: 0.10, y: 0.24 }, { name: "Charlottenburg", x: 0.26, y: 0.28 },
-    { name: "Mitte", x: 0.44, y: 0.26 }, { name: "Prenzlauer Berg", x: 0.52, y: 0.20 },
-    { name: "Friedrichshain", x: 0.58, y: 0.30 }, { name: "Kreuzberg", x: 0.48, y: 0.36 },
-    { name: "Neukolln", x: 0.52, y: 0.46 }, { name: "Tempelhof", x: 0.40, y: 0.44 },
-    { name: "Schoneberg", x: 0.32, y: 0.40 }, { name: "Lichtenberg", x: 0.66, y: 0.24 },
+    { name: "Spandau", x: 0.144, y: 0.169 }, { name: "Charlottenburg", x: 0.393, y: 0.243 },
+    { name: "Mitte", x: 0.631, y: 0.227 }, { name: "Prenzlauer Berg", x: 0.676, y: 0.149 },
+    { name: "Friedrichshain", x: 0.747, y: 0.247 }, { name: "Kreuzberg", x: 0.626, y: 0.309 },
+    { name: "Neukolln", x: 0.702, y: 0.379 }, { name: "Tempelhof", x: 0.583, y: 0.422 },
+    { name: "Schoneberg", x: 0.507, y: 0.372 }, { name: "Lichtenberg", x: 0.856, y: 0.247 },
   ],
   routeDefs: [
     [0, 1, 2, "gray"], [1, 2, 2, "green"], [1, 8, 2, "yellow"], [2, 3, 1, "gray"],
@@ -777,11 +777,11 @@ const BERLIN: GameMapDef = {
 const SAN_FRANCISCO: GameMapDef = {
   id: "sanfrancisco", name: "San Francisco",
   cities: [
-    { name: "Marina", x: 0.30, y: 0.10 }, { name: "North Beach", x: 0.46, y: 0.12 },
-    { name: "Richmond", x: 0.14, y: 0.22 }, { name: "Nob Hill", x: 0.42, y: 0.22 },
-    { name: "Financial District", x: 0.54, y: 0.22 }, { name: "Haight", x: 0.30, y: 0.32 },
-    { name: "Mission", x: 0.46, y: 0.38 }, { name: "Castro", x: 0.34, y: 0.40 },
-    { name: "Sunset", x: 0.18, y: 0.40 }, { name: "Bayview", x: 0.56, y: 0.50 },
+    { name: "Marina", x: 0.510, y: 0.119 }, { name: "North Beach", x: 0.604, y: 0.106 },
+    { name: "Richmond", x: 0.371, y: 0.220 }, { name: "Nob Hill", x: 0.587, y: 0.163 },
+    { name: "Financial District", x: 0.639, y: 0.158 }, { name: "Haight", x: 0.479, y: 0.264 },
+    { name: "Mission", x: 0.576, y: 0.308 }, { name: "Castro", x: 0.517, y: 0.299 },
+    { name: "Sunset", x: 0.312, y: 0.325 }, { name: "Bayview", x: 0.674, y: 0.440 },
   ],
   routeDefs: [
     [0, 1, 1, "gray"], [0, 3, 1, "green"], [1, 4, 1, "yellow"], [1, 3, 1, "gray"],
