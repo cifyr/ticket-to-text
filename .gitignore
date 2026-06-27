@@ -11,6 +11,10 @@ TicketToText.xcodeproj/
 # Node
 node_modules/
 
+# Local secrets / machine-specific (never commit)
+.env
+.env.*
+
 .archive/
 .DS_Store
 .vercel

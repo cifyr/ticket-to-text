@@ -111,7 +111,8 @@ grep -rIl 'com.cadenwarren.tickettotext' ./crashlogs   # (expect: nothing)
 A genuine code crash would (a) appear briefly in the process list and (b) write
 an `.ips`. Neither present ⇒ launch/trust problem, not a crash.
 
-This device's UDID: `00008150-00042CA60C9A401C` (iPhone Mini / iPhone 17 Pro).
+Test device UDID lives in `.env.local` (gitignored) as `DEVICE_UDID`; the
+commands below use `<device-udid>` as a placeholder.
 
 ### Fix (recovery cycle)
 Also required roughly every 7 days, whenever the free cert expires and the
@@ -131,7 +132,7 @@ xcodebuild -project TicketToText.xcodeproj -scheme TicketToText \
   -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' \
   -derivedDataPath build-device -allowProvisioningUpdates DEVELOPMENT_TEAM=ZRUFVD5GDT
 
-xcrun devicectl device install app --device 00008150-00042CA60C9A401C \
+xcrun devicectl device install app --device <device-udid> \
   build-device/Build/Products/Debug-iphoneos/TicketToText.app
 ```
 
