@@ -565,6 +565,235 @@ const POLAND: GameMapDef = {
   ],
 };
 
+const PENNSYLVANIA: GameMapDef = {
+  id: "pennsylvania", name: "Pennsylvania",
+  cities: [
+    { name: "Erie", x: 0.06, y: 0.06 }, { name: "Pittsburgh", x: 0.10, y: 0.30 },
+    { name: "Johnstown", x: 0.20, y: 0.32 }, { name: "Altoona", x: 0.28, y: 0.28 },
+    { name: "State College", x: 0.34, y: 0.24 }, { name: "Williamsport", x: 0.44, y: 0.18 },
+    { name: "Scranton", x: 0.62, y: 0.14 }, { name: "Wilkes-Barre", x: 0.60, y: 0.20 },
+    { name: "Allentown", x: 0.66, y: 0.30 }, { name: "Reading", x: 0.58, y: 0.34 },
+    { name: "Harrisburg", x: 0.48, y: 0.32 }, { name: "Lancaster", x: 0.56, y: 0.40 },
+    { name: "Philadelphia", x: 0.72, y: 0.40 }, { name: "York", x: 0.50, y: 0.42 },
+    { name: "Bradford", x: 0.30, y: 0.06 }, { name: "Pottsville", x: 0.56, y: 0.26 },
+  ],
+  routeDefs: [
+    [0, 14, 3, "gray"], [14, 4, 3, "green"], [0, 1, 4, "yellow"], [1, 2, 1, "gray"],
+    [2, 3, 1, "red"], [3, 4, 1, "gray"], [4, 5, 2, "blue"], [5, 6, 3, "orange"],
+    [6, 7, 1, "gray"], [7, 8, 2, "white"], [8, 12, 2, "purple"], [8, 9, 1, "gray"],
+    [9, 15, 1, "green"], [5, 15, 2, "gray"], [15, 10, 2, "yellow"], [4, 10, 3, "red"],
+    [10, 13, 1, "gray"], [10, 11, 1, "blue"], [11, 13, 1, "gray"], [11, 12, 2, "orange"],
+    [9, 11, 1, "white"], [1, 3, 3, "black"],
+  ],
+  ticketDefs: [
+    [0, 12, 20], [1, 12, 18], [1, 6, 12], [14, 8, 13], [0, 8, 16],
+    [2, 12, 15], [4, 12, 12], [1, 8, 14], [6, 13, 9], [0, 10, 13],
+  ],
+};
+
+const OLD_WEST: GameMapDef = {
+  id: "oldwest", name: "Old West",
+  cities: [
+    { name: "Seattle", x: 0.10, y: 0.04 }, { name: "Portland", x: 0.06, y: 0.12 },
+    { name: "San Francisco", x: 0.02, y: 0.34 }, { name: "Los Angeles", x: 0.10, y: 0.46 },
+    { name: "Sacramento", x: 0.06, y: 0.28 }, { name: "Salt Lake City", x: 0.30, y: 0.26 },
+    { name: "Helena", x: 0.34, y: 0.08 }, { name: "Denver", x: 0.44, y: 0.30 },
+    { name: "Santa Fe", x: 0.46, y: 0.42 }, { name: "El Paso", x: 0.48, y: 0.52 },
+    { name: "Tucson", x: 0.30, y: 0.50 }, { name: "Phoenix", x: 0.24, y: 0.46 },
+    { name: "Dodge City", x: 0.60, y: 0.34 }, { name: "Bismarck", x: 0.58, y: 0.08 },
+    { name: "Omaha", x: 0.68, y: 0.26 }, { name: "San Antonio", x: 0.62, y: 0.56 },
+  ],
+  routeDefs: [
+    [0, 1, 1, "gray"], [1, 4, 3, "green"], [4, 2, 1, "gray"], [2, 3, 4, "yellow"],
+    [4, 5, 4, "red"], [0, 6, 4, "gray"], [6, 5, 3, "blue"], [6, 13, 4, "orange"],
+    [5, 7, 3, "white"], [7, 6, 4, "purple"], [3, 11, 3, "gray"], [11, 10, 1, "gray"],
+    [11, 5, 5, "black"], [10, 9, 2, "yellow"], [9, 8, 2, "gray"], [8, 7, 2, "green"],
+    [7, 12, 2, "red"], [12, 14, 2, "gray"], [13, 14, 3, "blue"], [12, 15, 4, "orange"],
+    [9, 15, 4, "white"], [8, 12, 3, "gray"], [7, 14, 4, "purple"],
+  ],
+  ticketDefs: [
+    [0, 15, 22], [2, 14, 20], [1, 9, 18], [3, 13, 21], [0, 7, 14],
+    [2, 8, 16], [3, 14, 19], [6, 15, 17], [4, 12, 15], [11, 14, 13],
+  ],
+};
+
+const RAILS_WORLD: GameMapDef = {
+  id: "world", name: "Rails & Sails: World",
+  cities: [
+    { name: "New York", x: 0.26, y: 0.24 }, { name: "Los Angeles", x: 0.10, y: 0.30 },
+    { name: "Vancouver", x: 0.10, y: 0.18 }, { name: "Lima", x: 0.26, y: 0.56 },
+    { name: "Buenos Aires", x: 0.32, y: 0.70 }, { name: "London", x: 0.46, y: 0.16 },
+    { name: "Lisbon", x: 0.42, y: 0.26 }, { name: "Cairo", x: 0.56, y: 0.32 },
+    { name: "Lagos", x: 0.48, y: 0.44 }, { name: "Cape Town", x: 0.54, y: 0.66 },
+    { name: "Moscow", x: 0.60, y: 0.12 }, { name: "Mumbai", x: 0.70, y: 0.36 },
+    { name: "Beijing", x: 0.82, y: 0.20 }, { name: "Tokyo", x: 0.92, y: 0.24 },
+    { name: "Singapore", x: 0.82, y: 0.46 }, { name: "Sydney", x: 0.94, y: 0.66 },
+    { name: "Honolulu", x: 0.04, y: 0.36 }, { name: "Panama", x: 0.22, y: 0.42 },
+  ],
+  routeDefs: [
+    [2, 0, 4, "gray"], [2, 1, 3, "green"], [1, 16, 5, "blue"], [1, 17, 3, "gray"],
+    [0, 17, 3, "yellow"], [17, 3, 3, "red"], [3, 4, 4, "gray"], [0, 5, 5, "white"],
+    [5, 6, 2, "gray"], [5, 10, 4, "orange"], [6, 8, 4, "purple"], [6, 4, 6, "gray"],
+    [7, 5, 4, "blue"], [7, 10, 3, "gray"], [7, 8, 3, "yellow"], [8, 9, 3, "red"],
+    [7, 11, 3, "green"], [10, 12, 5, "gray"], [11, 12, 4, "white"], [11, 14, 3, "orange"],
+    [12, 13, 2, "gray"], [12, 14, 4, "purple"], [14, 15, 4, "blue"], [13, 15, 6, "black"],
+    [9, 15, 6, "gray"], [13, 16, 6, "red"],
+  ],
+  ticketDefs: [
+    [0, 15, 22], [1, 13, 20], [5, 15, 21], [4, 12, 22], [16, 10, 18],
+    [3, 11, 20], [9, 13, 21], [2, 14, 19], [0, 11, 16], [6, 15, 22],
+  ],
+};
+
+const RAILS_LAKES: GameMapDef = {
+  id: "greatlakes", name: "Rails & Sails: Great Lakes",
+  cities: [
+    { name: "Duluth", x: 0.12, y: 0.18 }, { name: "Thunder Bay", x: 0.18, y: 0.06 },
+    { name: "Sault Ste Marie", x: 0.46, y: 0.14 }, { name: "Marquette", x: 0.34, y: 0.16 },
+    { name: "Green Bay", x: 0.34, y: 0.30 }, { name: "Milwaukee", x: 0.38, y: 0.40 },
+    { name: "Chicago", x: 0.34, y: 0.46 }, { name: "Detroit", x: 0.60, y: 0.40 },
+    { name: "Toledo", x: 0.58, y: 0.46 }, { name: "Cleveland", x: 0.66, y: 0.42 },
+    { name: "Buffalo", x: 0.80, y: 0.36 }, { name: "Toronto", x: 0.74, y: 0.28 },
+    { name: "Ottawa", x: 0.86, y: 0.18 }, { name: "Montreal", x: 0.92, y: 0.16 },
+    { name: "Erie", x: 0.72, y: 0.42 }, { name: "Georgian Bay", x: 0.58, y: 0.24 },
+  ],
+  routeDefs: [
+    [1, 0, 2, "gray"], [1, 3, 3, "green"], [0, 4, 3, "gray"], [3, 2, 2, "yellow"],
+    [3, 4, 2, "gray"], [4, 5, 1, "red"], [5, 6, 1, "gray"], [4, 6, 2, "blue"],
+    [2, 15, 2, "gray"], [15, 11, 2, "orange"], [6, 7, 3, "white"], [7, 8, 1, "gray"],
+    [8, 9, 1, "purple"], [7, 11, 2, "gray"], [9, 14, 1, "gray"], [14, 10, 1, "yellow"],
+    [10, 11, 2, "gray"], [11, 12, 3, "green"], [12, 13, 1, "gray"], [10, 12, 3, "blue"],
+    [15, 7, 2, "red"], [9, 10, 2, "white"],
+  ],
+  ticketDefs: [
+    [1, 13, 22], [0, 13, 20], [6, 13, 18], [0, 10, 15], [6, 10, 12],
+    [1, 7, 13], [4, 9, 11], [2, 13, 14], [6, 11, 9], [0, 7, 12],
+  ],
+};
+
+const NEW_YORK: GameMapDef = {
+  id: "newyork", name: "New York",
+  cities: [
+    { name: "Inwood", x: 0.36, y: 0.02 }, { name: "Harlem", x: 0.40, y: 0.12 },
+    { name: "Upper West Side", x: 0.30, y: 0.22 }, { name: "Upper East Side", x: 0.48, y: 0.22 },
+    { name: "Midtown", x: 0.38, y: 0.34 }, { name: "Chelsea", x: 0.28, y: 0.40 },
+    { name: "Greenwich Village", x: 0.36, y: 0.46 }, { name: "SoHo", x: 0.34, y: 0.54 },
+    { name: "Lower Manhattan", x: 0.40, y: 0.64 }, { name: "Brooklyn", x: 0.56, y: 0.66 },
+    { name: "Queens", x: 0.64, y: 0.44 }, { name: "Bronx", x: 0.56, y: 0.10 },
+  ],
+  routeDefs: [
+    [0, 11, 1, "gray"], [0, 1, 1, "green"], [1, 11, 1, "yellow"], [1, 2, 1, "gray"],
+    [1, 3, 1, "red"], [2, 4, 1, "gray"], [3, 4, 1, "blue"], [3, 10, 2, "orange"],
+    [4, 5, 1, "gray"], [4, 10, 2, "white"], [5, 6, 1, "purple"], [6, 7, 1, "gray"],
+    [7, 8, 1, "yellow"], [8, 9, 1, "gray"], [9, 10, 2, "green"], [6, 4, 1, "gray"],
+    [8, 10, 2, "red"],
+  ],
+  ticketDefs: [
+    [0, 9, 12], [11, 8, 10], [2, 10, 8], [5, 9, 9], [0, 8, 11],
+    [3, 7, 7], [11, 9, 12], [1, 8, 9],
+  ],
+};
+
+const LONDON: GameMapDef = {
+  id: "london", name: "London",
+  cities: [
+    { name: "Camden", x: 0.36, y: 0.16 }, { name: "Islington", x: 0.50, y: 0.18 },
+    { name: "Paddington", x: 0.26, y: 0.30 }, { name: "Westminster", x: 0.36, y: 0.36 },
+    { name: "City", x: 0.52, y: 0.34 }, { name: "Shoreditch", x: 0.58, y: 0.26 },
+    { name: "Kensington", x: 0.22, y: 0.42 }, { name: "Southwark", x: 0.46, y: 0.44 },
+    { name: "Greenwich", x: 0.66, y: 0.46 }, { name: "Brixton", x: 0.42, y: 0.56 },
+  ],
+  routeDefs: [
+    [0, 1, 1, "gray"], [0, 2, 2, "green"], [1, 5, 1, "yellow"], [2, 3, 2, "gray"],
+    [0, 3, 1, "red"], [3, 4, 1, "blue"], [1, 4, 1, "gray"], [4, 5, 1, "orange"],
+    [2, 6, 1, "gray"], [3, 7, 1, "white"], [4, 7, 1, "gray"], [5, 8, 3, "purple"],
+    [7, 8, 2, "gray"], [7, 9, 1, "yellow"], [6, 9, 2, "gray"], [3, 9, 2, "green"],
+  ],
+  ticketDefs: [
+    [6, 8, 12], [2, 8, 11], [0, 9, 8], [6, 5, 10], [2, 9, 9], [0, 8, 12], [6, 4, 8],
+  ],
+};
+
+const PARIS: GameMapDef = {
+  id: "paris", name: "Paris",
+  cities: [
+    { name: "Montmartre", x: 0.40, y: 0.12 }, { name: "La Villette", x: 0.56, y: 0.14 },
+    { name: "Champs-Elysees", x: 0.28, y: 0.26 }, { name: "Louvre", x: 0.42, y: 0.28 },
+    { name: "Bastille", x: 0.56, y: 0.30 }, { name: "Eiffel Tower", x: 0.24, y: 0.38 },
+    { name: "Latin Quarter", x: 0.44, y: 0.40 }, { name: "Bercy", x: 0.58, y: 0.42 },
+    { name: "Montparnasse", x: 0.34, y: 0.46 }, { name: "Place d'Italie", x: 0.48, y: 0.52 },
+  ],
+  routeDefs: [
+    [0, 2, 2, "gray"], [0, 3, 1, "green"], [0, 1, 1, "yellow"], [1, 4, 1, "gray"],
+    [2, 3, 1, "red"], [3, 4, 1, "blue"], [2, 5, 2, "gray"], [3, 6, 1, "orange"],
+    [4, 7, 1, "gray"], [5, 8, 2, "white"], [6, 8, 1, "gray"], [6, 9, 1, "purple"],
+    [7, 9, 1, "gray"], [6, 7, 1, "yellow"], [5, 6, 2, "gray"], [8, 9, 1, "green"],
+  ],
+  ticketDefs: [
+    [0, 9, 10], [5, 7, 11], [2, 7, 9], [0, 8, 8], [1, 8, 10], [5, 9, 9], [2, 4, 7],
+  ],
+};
+
+const AMSTERDAM: GameMapDef = {
+  id: "amsterdam", name: "Amsterdam",
+  cities: [
+    { name: "Centraal", x: 0.40, y: 0.10 }, { name: "Jordaan", x: 0.30, y: 0.20 },
+    { name: "Dam", x: 0.42, y: 0.22 }, { name: "Plantage", x: 0.56, y: 0.24 },
+    { name: "Museumplein", x: 0.34, y: 0.34 }, { name: "De Pijp", x: 0.44, y: 0.38 },
+    { name: "Oost", x: 0.60, y: 0.36 }, { name: "Vondelpark", x: 0.26, y: 0.36 },
+    { name: "Zuid", x: 0.40, y: 0.48 }, { name: "Oud-West", x: 0.28, y: 0.28 },
+  ],
+  routeDefs: [
+    [0, 1, 1, "gray"], [0, 2, 1, "green"], [0, 3, 2, "yellow"], [1, 9, 1, "gray"],
+    [2, 3, 1, "red"], [2, 4, 2, "blue"], [9, 4, 1, "gray"], [4, 7, 1, "orange"],
+    [4, 5, 1, "gray"], [3, 6, 1, "white"], [5, 6, 2, "gray"], [5, 8, 1, "purple"],
+    [7, 8, 2, "gray"], [6, 8, 2, "yellow"], [1, 4, 1, "gray"], [2, 5, 1, "green"],
+  ],
+  ticketDefs: [
+    [0, 8, 10], [1, 6, 9], [7, 3, 10], [9, 8, 8], [0, 6, 9], [7, 6, 11], [1, 8, 8],
+  ],
+};
+
+const BERLIN: GameMapDef = {
+  id: "berlin", name: "Berlin",
+  cities: [
+    { name: "Spandau", x: 0.10, y: 0.24 }, { name: "Charlottenburg", x: 0.26, y: 0.28 },
+    { name: "Mitte", x: 0.44, y: 0.26 }, { name: "Prenzlauer Berg", x: 0.52, y: 0.20 },
+    { name: "Friedrichshain", x: 0.58, y: 0.30 }, { name: "Kreuzberg", x: 0.48, y: 0.36 },
+    { name: "Neukolln", x: 0.52, y: 0.46 }, { name: "Tempelhof", x: 0.40, y: 0.44 },
+    { name: "Schoneberg", x: 0.32, y: 0.40 }, { name: "Lichtenberg", x: 0.66, y: 0.24 },
+  ],
+  routeDefs: [
+    [0, 1, 2, "gray"], [1, 2, 2, "green"], [1, 8, 2, "yellow"], [2, 3, 1, "gray"],
+    [2, 5, 1, "red"], [3, 4, 1, "blue"], [3, 9, 1, "gray"], [4, 9, 1, "orange"],
+    [4, 5, 1, "gray"], [5, 6, 1, "white"], [5, 7, 1, "gray"], [7, 8, 1, "purple"],
+    [6, 7, 1, "gray"], [8, 1, 1, "yellow"], [2, 4, 1, "gray"], [6, 9, 2, "green"],
+  ],
+  ticketDefs: [
+    [0, 9, 12], [0, 6, 10], [8, 4, 9], [1, 9, 8], [0, 4, 10], [8, 9, 9], [1, 6, 8],
+  ],
+};
+
+const SAN_FRANCISCO: GameMapDef = {
+  id: "sanfrancisco", name: "San Francisco",
+  cities: [
+    { name: "Marina", x: 0.30, y: 0.10 }, { name: "North Beach", x: 0.46, y: 0.12 },
+    { name: "Richmond", x: 0.14, y: 0.22 }, { name: "Nob Hill", x: 0.42, y: 0.22 },
+    { name: "Financial District", x: 0.54, y: 0.22 }, { name: "Haight", x: 0.30, y: 0.32 },
+    { name: "Mission", x: 0.46, y: 0.38 }, { name: "Castro", x: 0.34, y: 0.40 },
+    { name: "Sunset", x: 0.18, y: 0.40 }, { name: "Bayview", x: 0.56, y: 0.50 },
+  ],
+  routeDefs: [
+    [0, 1, 1, "gray"], [0, 3, 1, "green"], [1, 4, 1, "yellow"], [1, 3, 1, "gray"],
+    [3, 4, 1, "red"], [2, 0, 2, "blue"], [2, 5, 2, "gray"], [3, 5, 1, "orange"],
+    [4, 6, 1, "gray"], [5, 7, 1, "white"], [5, 8, 1, "gray"], [7, 8, 2, "purple"],
+    [6, 7, 1, "gray"], [6, 9, 1, "yellow"], [4, 9, 2, "gray"], [7, 9, 2, "green"],
+  ],
+  ticketDefs: [
+    [2, 9, 11], [8, 4, 10], [0, 9, 9], [2, 4, 8], [8, 1, 9], [0, 6, 8], [2, 6, 10],
+  ],
+};
+
 // The registry. New maps are added here (and mirrored in Swift GameMap).
 export const MAPS: Record<string, GameMapDef> = {
   [USA.id]: USA,
@@ -581,6 +810,16 @@ export const MAPS: Record<string, GameMapDef> = {
   [ITALY.id]: ITALY,
   [JAPAN.id]: JAPAN,
   [POLAND.id]: POLAND,
+  [PENNSYLVANIA.id]: PENNSYLVANIA,
+  [OLD_WEST.id]: OLD_WEST,
+  [RAILS_WORLD.id]: RAILS_WORLD,
+  [RAILS_LAKES.id]: RAILS_LAKES,
+  [NEW_YORK.id]: NEW_YORK,
+  [LONDON.id]: LONDON,
+  [PARIS.id]: PARIS,
+  [AMSTERDAM.id]: AMSTERDAM,
+  [BERLIN.id]: BERLIN,
+  [SAN_FRANCISCO.id]: SAN_FRANCISCO,
 };
 
 export const DEFAULT_MAP_ID = "usa";
