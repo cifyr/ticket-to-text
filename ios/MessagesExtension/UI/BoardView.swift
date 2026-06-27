@@ -375,6 +375,19 @@ enum BoardGeometry {
         } else if let rings = mapOutlines[mapId] {
             for ring in rings { fillLand(ring, in: c, size: size) }
         }
+        // Lakes/seas for maps that have them (e.g., Great Lakes), in faint blue.
+        if let water = mapWater[mapId] {
+            for ring in water {
+                var path = Path()
+                for (i, pt) in ring.enumerated() {
+                    let p = point(pt.0, pt.1, in: size)
+                    if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+                }
+                path.closeSubpath()
+                c.fill(path, with: .color(Color(hex: 0x4A77A8).opacity(0.22)))
+                c.stroke(path, with: .color(Color(hex: 0x4A77A8).opacity(0.4)), lineWidth: 1)
+            }
+        }
     }
 
     private static func fillLand(_ outline: [(Double, Double)], in ctx: GraphicsContext, size: CGSize) {
