@@ -91,10 +91,27 @@ function project(fc: any, spec: Spec, filter: ((p: any) => boolean) | undefined,
   const [minLon, minLat, maxLon, maxLat] = spec.bbox;
   const sx = (lon: number) => cx0 + ((lon - minLon) / (maxLon - minLon)) * (cx1 - cx0);
   const sy = (lat: number) => cy0 + ((maxLat - lat) / (maxLat - minLat)) * (cy1 - cy0);
+  const inBox = ([lon, lat]: Pt) => lon >= minLon && lon <= maxLon && lat >= minLat && lat <= maxLat;
+  const segSeg = (p1: Pt, p2: Pt, p3: Pt, p4: Pt) => {
+    const d = (a: Pt, b: Pt, c: Pt) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    const d1 = d(p3, p4, p1), d2 = d(p3, p4, p2), d3 = d(p1, p2, p3), d4 = d(p1, p2, p4);
+    return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+  };
+  const corners: Pt[] = [[minLon, minLat], [maxLon, minLat], [maxLon, maxLat], [minLon, maxLat]];
+  // Keep a ring only if it truly interacts with the box (vertex inside or edge
+  // crossing) — rejects the clip artifact that fills the box with a bogus shape.
+  const hits = (ring: Pt[]) => {
+    if (ring.some(inBox)) return true;
+    for (let i = 0; i < ring.length - 1; i++)
+      for (let e = 0; e < 4; e++)
+        if (segSeg(ring[i], ring[i + 1], corners[e], corners[(e + 1) % 4])) return true;
+    return false;
+  };
   const rings: Pt[][] = [];
   for (const f of fc.features) {
     if (filter && !filter(f.properties)) continue;
     for (const ring of ringsOf(f.geometry)) {
+      if (!hits(ring as Pt[])) continue;
       const clipped = clip(ring as Pt[], spec.bbox);
       if (clipped.length < 4) continue;
       const proj = simplify(clipped.map(([lon, lat]) => [sx(lon), sy(lat)] as Pt), 0.006);

@@ -53,9 +53,11 @@ const CITIES: City[] = [
 ];
 
 const dir = process.argv[2];
-const ocean = JSON.parse(readFileSync(`${dir}/ne_10m_ocean.geojson`, "utf8"));
 const lakes = JSON.parse(readFileSync(`${dir}/ne_10m_lakes.geojson`, "utf8"));
 const rivers = JSON.parse(readFileSync(`${dir}/ne_10m_rivers_lake_centerlines.geojson`, "utf8"));
+// Coastlines as lines: ocean polygons store the coast as holes, which don't
+// survive exterior-ring extraction, so use the dedicated coastline line layer.
+const coastline = JSON.parse(readFileSync(`${dir}/ne_10m_coastline.geojson`, "utf8"));
 
 function projector(bbox: BBox) {
   const [minLon, minLat, maxLon, maxLat] = bbox;
@@ -69,6 +71,23 @@ function projector(bbox: BBox) {
 }
 
 function inBox([lon, lat]: Pt, [m0, m1, m2, m3]: BBox) { return lon >= m0 && lon <= m2 && lat >= m1 && lat <= m3; }
+
+function segSeg(p1: Pt, p2: Pt, p3: Pt, p4: Pt) {
+  const d = (a: Pt, b: Pt, c: Pt) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const d1 = d(p3, p4, p1), d2 = d(p3, p4, p2), d3 = d(p1, p2, p3), d4 = d(p1, p2, p4);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+// True if the ring genuinely interacts with the box (a vertex inside, or an edge
+// crossing it). Rejects polygons that merely span the box's half-planes (the
+// clip artifact that fills inland boxes with bogus "ocean").
+function ringHitsBox(ring: Pt[], [x0, y0, x1, y1]: BBox) {
+  if (ring.some((p) => inBox(p, [x0, y0, x1, y1]))) return true;
+  const corners: Pt[] = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  for (let i = 0; i < ring.length - 1; i++)
+    for (let e = 0; e < 4; e++)
+      if (segSeg(ring[i], ring[i + 1], corners[e], corners[(e + 1) % 4])) return true;
+  return false;
+}
 
 function clipPoly(ring: Pt[], [minX, minY, maxX, maxY]: BBox): Pt[] {
   const edges = [(p: Pt) => p[0] >= minX, (p: Pt) => p[0] <= maxX, (p: Pt) => p[1] >= minY, (p: Pt) => p[1] <= maxY];
@@ -116,22 +135,21 @@ for (const c of CITIES) {
     return `("${n}", ${x.toFixed(3)}, ${y.toFixed(3)})`;
   }).join("\n"));
 
-  // Water: ocean + lakes polygons clipped to bbox
+  // Water fills: lakes only (simple polygons, no holes).
   const wr: Pt[][] = [];
-  for (const fc of [ocean, lakes]) {
-    for (const f of fc.features) {
-      for (const ring of polysOf(f.geometry)) {
-        const cl = clipPoly(ring as Pt[], c.bbox);
-        if (cl.length < 4) continue;
-        wr.push(cl.map(([lon, lat]) => proj(lon, lat)));
-      }
+  for (const f of lakes.features) {
+    for (const ring of polysOf(f.geometry)) {
+      if (!ringHitsBox(ring as Pt[], c.bbox)) continue;
+      const cl = clipPoly(ring as Pt[], c.bbox);
+      if (cl.length < 4) continue;
+      wr.push(cl.map(([lon, lat]) => proj(lon, lat)));
     }
   }
   waterOut[c.id] = wr;
 
-  // Rivers: clip line segments to bbox, keep inside runs
+  // Blue lines: coastline + river centerlines, clipped to the bbox.
   const rr: Pt[][] = [];
-  for (const f of rivers.features) {
+  for (const f of [...coastline.features, ...rivers.features]) {
     for (const line of linesOf(f.geometry)) {
       let run: Pt[] = [];
       for (const p of line as Pt[]) {
@@ -142,7 +160,7 @@ for (const c of CITIES) {
     }
   }
   riverOut[c.id] = rr;
-  console.log(`${c.id}: water=${wr.length} rivers=${rr.length}`);
+  console.log(`${c.id}: lakes=${wr.length} lines=${rr.length}`);
 }
 
 const swift = [
